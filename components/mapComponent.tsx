@@ -69,6 +69,8 @@ const BaseMap = ({ markers = [], initialViewState }: BaseMapProps) => {
             title={selectedMarker.title}
             description={selectedMarker.description}
             type={selectedMarker.type}
+            status={selectedMarker.status}
+            quantity={selectedMarker.quantity}
           />
         </Popup>
       )}
