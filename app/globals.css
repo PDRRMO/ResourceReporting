@@ -27,4 +27,9 @@ body {
 
 .maplibregl-popup-content{
   border-radius:10% !important;
+  /* background-color: transparent !important; */
+}
+
+input, textarea, select, p{
+  color:black;
 }

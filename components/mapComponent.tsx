@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import Map, { Marker, Popup } from "react-map-gl/maplibre";
+import Map, { Marker, Popup, AttributionControl } from "react-map-gl/maplibre";
 import ResourcePopup from "./popUpComponent";
 import Image from "next/image";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -16,17 +16,21 @@ interface BaseMapProps {
 }
 
 export interface MarkerData {
+  id: string | number;
   longitude: number;
   latitude: number;
   title: string;
   description: string;
   type: string;
-  status: string;
   quantity: number;
+  createdAt?: string;
+  user_id?: string;
+  onClose?: () => void;
 }
 
 const BaseMap = ({ markers = [], initialViewState }: BaseMapProps) => {
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null);
+
   return (
     <Map
       initialViewState={
@@ -39,6 +43,7 @@ const BaseMap = ({ markers = [], initialViewState }: BaseMapProps) => {
       }
       style={{ width: "100%", height: "100%" }}
       mapStyle="https://tiles.openfreemap.org/styles/liberty"
+      attributionControl={false}
     >
       {markers.map((m, i) => (
         <Marker
@@ -64,16 +69,12 @@ const BaseMap = ({ markers = [], initialViewState }: BaseMapProps) => {
           closeOnClick={false}
         >
           <ResourcePopup
-            longitude={selectedMarker.longitude}
-            latitude={selectedMarker.latitude}
-            title={selectedMarker.title}
-            description={selectedMarker.description}
-            type={selectedMarker.type}
-            status={selectedMarker.status}
-            quantity={selectedMarker.quantity}
+            selectedMarker={selectedMarker}
+            onClose={() => setSelectedMarker(null)}
           />
         </Popup>
       )}
+      <AttributionControl customAttribution="PDRRMO 2026" compact={true} />
     </Map>
   );
 };

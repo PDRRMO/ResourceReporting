@@ -1,89 +1,98 @@
-import React from "react";
-import {
-  Truck,
-  Wrench,
-  ShieldAlert,
-  Waves,
-  Mountain,
-  Building2,
-  Radio,
-  Activity,
-} from "lucide-react";
+// components/popUpComponent.tsx
+import React, { useEffect, useRef } from "react";
+import { X, MapPin } from "lucide-react";
+import { RESOURCE_CONFIG, type ResourceType } from "@/lib/constants";
 import type { MarkerData } from "./mapComponent";
 
-// Mapping the filenames from your image to Lucide icons
-const getIcon = (type = "") => {
-  const t = type.toLowerCase();
-  if (t.includes("truck") || t.includes("ambulance"))
-    return <Truck size={18} />;
-  if (t.includes("tool") || t.includes("equipment"))
-    return <Wrench size={18} />;
-  if (t.includes("fire")) return <ShieldAlert size={18} />;
-  if (t.includes("water")) return <Waves size={18} />;
-  if (t.includes("altitude")) return <Mountain size={18} />;
-  if (t.includes("urban") || t.includes("structure"))
-    return <Building2 size={18} />;
-  if (t.includes("communication") || t.includes("warning"))
-    return <Radio size={18} />;
-  return <Activity size={18} />;
-};
+interface PopupProps {
+  selectedMarker: MarkerData | null;
+  onClose: () => void;
+}
 
-export default function ResourcePopup(selectedMarker: MarkerData) {
+export default function ResourcePopup({ selectedMarker, onClose }: PopupProps) {
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Only run the logic if we actually have a marker
+    if (!selectedMarker) return;
+
+    const handler = (e: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [selectedMarker, onClose]);
+
+  // 2. Early return AFTER all hooks have been declared
   if (!selectedMarker) return null;
 
-  // Formatting the type from the filename (e.g., "vehicle_extrication" -> "Vehicle Extrication")
-  const formatType = (str: string) =>
-    str.replace(/_/g, " ").replace(".png", "").toUpperCase();
+  const config = RESOURCE_CONFIG[selectedMarker.type as ResourceType] || {
+    label: "Unknown",
+    icon: MapPin,
+  };
+  const Icon = config.icon;
 
   return (
-    <div className="w-72 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200">
-      {/* Blue Accent Header */}
-      <div className="flex items-center justify-between bg-blue-600 px-4 py-2.5 text-white">
+    <div
+      ref={popupRef}
+      className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-72 overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in duration-150"
+    >
+      {/* Header */}
+      <div className="bg-blue-600 px-4 py-3 text-white flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {getIcon(selectedMarker.type)}
-          <span className="text-[10px] font-bold uppercase tracking-widest opacity-90">
-            {formatType(selectedMarker.type || "Resource")}
+          <Icon size={16} className="text-blue-100" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">
+            {config.label}
           </span>
         </div>
-        <div className="flex items-center gap-1 rounded-md bg-white/20 px-2 py-0.5 text-xs font-bold backdrop-blur-sm">
-          QTY: {selectedMarker.quantity || 0}
-        </div>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-white/20 rounded-full transition-colors"
+        >
+          <X size={16} />
+        </button>
       </div>
 
-      <div className="p-4">
-        {/* Name and Status */}
-        <div className="mb-3">
-          <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
-            {selectedMarker.title || "Unassigned Unit"}
-          </h3>
-          <p className="text-xs font-medium text-blue-600">
-            {selectedMarker.status || "Ready for Deployment"}
-          </p>
-        </div>
-
-        {/* Location Info */}
-        <div className="flex items-center gap-4 border-t border-slate-100 pt-3">
+      {/* Body */}
+      <div className="p-5">
+        <div className="flex justify-between items-start">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">
-              Latitude
-            </span>
-            <span className="text-xs font-mono font-semibold text-slate-700">
-              {selectedMarker.latitude?.toFixed(4)}
-            </span>
+            <h3 className="text-xl font-bold text-slate-900 leading-tight">
+              {selectedMarker.title}
+            </h3>
+            <p className="text-xs">{selectedMarker.description}</p>
           </div>
-          <div className="flex flex-col border-l border-slate-100 pl-4">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">
-              Longitude
+          <div className="bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg text-center">
+            <span className="block text-[9px] font-black text-slate-400 uppercase">
+              Qty
             </span>
-            <span className="text-xs font-mono font-semibold text-slate-700">
-              {selectedMarker.longitude?.toFixed(4)}
+            <span className="text-lg font-black text-blue-600">
+              {selectedMarker.quantity}
             </span>
           </div>
         </div>
 
-        {/* Actions */}
-        <button className="mt-4 w-full rounded-lg bg-slate-900 py-2 text-sm font-bold text-white transition-all hover:bg-slate-800 active:scale-95">
-          Dispatch Resource
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="p-2 bg-slate-50 rounded-lg">
+            <p className="text-[9px] font-bold text-slate-400 uppercase">Lat</p>
+            <p className="font-mono text-xs font-bold text-slate-700">
+              {selectedMarker.latitude.toFixed(4)}
+            </p>
+          </div>
+          <div className="p-2 bg-slate-50 rounded-lg">
+            <p className="text-[9px] font-bold text-slate-400 uppercase">
+              Long
+            </p>
+            <p className="font-mono text-xs font-bold text-slate-700">
+              {selectedMarker.longitude.toFixed(4)}
+            </p>
+          </div>
+        </div>
+
+        <button className="mt-5 w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all active:scale-95">
+          Deploy Resource
         </button>
       </div>
     </div>
