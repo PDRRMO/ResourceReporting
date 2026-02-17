@@ -329,8 +329,7 @@ export default function HomePage() {
       return {
         ...resource,
         id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        user_id: "mock-user-id",
+        createdAt: new Date().toISOString()
       };
     });
     
@@ -340,8 +339,23 @@ export default function HomePage() {
   };
 
   const centerToLocation = () => {
-    // This would trigger the map to center - implementation in ResourceMap
-    window.dispatchEvent(new CustomEvent('center-map'));
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          // Dispatch event to center map on user's location
+          window.dispatchEvent(new CustomEvent('center-map', { 
+            detail: { latitude, longitude } 
+          }));
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          alert("Unable to get your location. Please enable location services.");
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser.");
+    }
   };
 
   if (isLoading) {
