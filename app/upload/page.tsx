@@ -15,12 +15,22 @@ export default function UploadResourcePage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    type: "trucks", // Simplified type as requested
+    type: "trucks",
     quantity: 1,
     latitude: 0,
     longitude: 0,
     description: "",
+    municipality: "Iloilo City",
   });
+
+  const municipalities = [
+    "Iloilo City",
+    "Oton",
+    "Pavia",
+    "Leganes",
+    "Santa Barbara",
+    "Dumangas",
+  ];
 
   const getLocation = () => {
     if (!navigator.geolocation) {
@@ -158,6 +168,29 @@ export default function UploadResourcePage() {
                   }
                 />
               </div>
+            </div>
+
+            {/* Municipality */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Municipality
+              </label>
+              <select
+                className="w-full rounded-lg border-slate-200 bg-slate-50 p-3 text-sm outline-none border"
+                value={formData.municipality}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    municipality: e.target.value,
+                  })
+                }
+              >
+                {municipalities.map((municipality) => (
+                  <option key={municipality} value={municipality}>
+                    {municipality}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Coordinates */}

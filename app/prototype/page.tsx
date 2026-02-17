@@ -414,7 +414,7 @@ useEffect(() => {
             longitude: ILOILO_CENTER.lng,
             latitude: ILOILO_CENTER.lat,
             zoom: 11,
-            pitch: 0
+            pitch: 30
           }}
           mapLib={maplibregl}
           mapStyle="https://tiles.openfreemap.org/styles/liberty"
