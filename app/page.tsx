@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Clock
 } from "lucide-react";
+import Image from "next/image";
 
 const RESOURCE_TYPES: ResourceType[] = [
   "ver", "comm", "tools", "trucks", "watercraft", 
@@ -96,7 +97,7 @@ const ResourceDetailSidebar = ({
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="fixed left-0 top-0 h-full w-[400px] bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-r border-slate-200/50">
+    <div className="fixed left-0 top-0 h-full w-full md:w-40 bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-r border-slate-200/50">
       {/* Header with close button */}
       <div className="flex items-center justify-between p-6 border-b border-slate-100">
         <h2 className="text-lg font-bold text-[#1e293b]">Resource Details</h2>
@@ -226,7 +227,7 @@ const FilterModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-[500px] max-h-[80vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden mx-2">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <h2 className="text-lg font-bold text-[#1e293b]">Filter Resources</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
@@ -283,7 +284,7 @@ export default function HomePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ResourceType[]>(RESOURCE_TYPES);
+  const [activeFilters, setActiveFilters] = useState<ResourceType[]>(['ver']);
 
   useEffect(() => {
     const loadResources = () => {
@@ -384,22 +385,22 @@ export default function HomePage() {
       </div>
 
       {/* Glassmorphism Header */}
-      <header className="absolute top-6 left-6 z-40 flex items-center gap-4">
+      <header className="absolute top-6 z-40 flex items-center gap-1 w-[95vw] mx-2 md:gap-5 md:ml-5">
         {/* Logo */}
-        <div className="w-12 h-12 bg-[#1e293b] rounded-full flex items-center justify-center shadow-xl">
-          <Activity size={24} className="text-white" />
+        <div className="w-15 h-15 bg-[#1e293b] rounded-full flex items-center justify-center shadow-xl">
+          <Image src='/logo.png' width={100} height={100}  alt="Logo"/>
         </div>
         
         {/* Search Bar */}
-        <div className="relative">
-          <div className="flex items-center bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 px-5 py-3.5 w-[380px]">
+        <div className="relative w-70 md:w-100">
+          <div className="flex items-center bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-3.5">
             <Search size={20} className="text-[#64748b] mr-3" />
             <input
               type="text"
-              placeholder="PDRRMO Resource Management"
+              placeholder="Search for Resources..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent outline-none text-[#1e293b] placeholder-[#64748b] font-medium text-sm"
+              className="flex-1 bg-transparent outline-none text-[#1e293b] placeholder-[#64748b] font-medium text-sm "
             />
             {searchQuery && (
               <button 
@@ -414,7 +415,7 @@ export default function HomePage() {
       </header>
 
       {/* Right Control Panel */}
-      <div className="absolute top-6 right-6 z-40 flex flex-col gap-3">
+      <div className="absolute top-25 right-6 z-40 flex flex-col gap-3 md:top-5">
         {/* Add Mock Data Button */}
         <button
           onClick={addMockData}
@@ -462,7 +463,7 @@ export default function HomePage() {
       {/* Backdrop when sidebar is open */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-black/20 z-40"
           onClick={() => {
             setIsSidebarOpen(false);
             setSelectedMarker(null);
@@ -479,7 +480,7 @@ export default function HomePage() {
       />
 
       {/* Stats Badge - Bottom Left */}
-      <div className="absolute bottom-6 left-6 z-40">
+      <div className="absolute bottom-6 mx-4 z-40">
         <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 px-5 py-4">
           <div className="flex items-center gap-6">
             <div>

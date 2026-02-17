@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node node_modules/next/dist/bin/next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -15,7 +15,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-map-gl": "^8.1.0",
-    "react-map-gl-supercluster": "^2.0.2"
+    "react-map-gl-supercluster": "^2.0.2",
+    "vercel": "^50.18.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

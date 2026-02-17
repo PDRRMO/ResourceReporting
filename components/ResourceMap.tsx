@@ -261,8 +261,8 @@ export default function ResourceMap({
         onClick={onClickMap}
         onLoad={initializeMap}
       >
-        <NavigationControl position="bottom-right" />
-        <GeolocateControl position="bottom-right" />
+        {/* <NavigationControl position="bottom-right" />
+        <GeolocateControl position="bottom-right" /> */}
 
         {selectedMarker && (
           <Popup
