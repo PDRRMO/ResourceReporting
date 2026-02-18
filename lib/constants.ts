@@ -1,7 +1,31 @@
 import { 
   Truck, Wrench, ShieldAlert, Waves, 
-  Mountain, Building2, Radio, Activity, Syringe, HardHat 
+  Mountain, Building2, Radio, Activity, Syringe, HardHat,
+  CheckCircle2, Clock, Activity as ActivityIcon
 } from "lucide-react";
+
+export const STATUS_CONFIG = {
+  ready: { 
+    label: "Ready", 
+    color: "#22c55e", 
+    bgColor: "bg-green-500",
+    icon: CheckCircle2 
+  },
+  deployed: { 
+    label: "Deployed", 
+    color: "#f97316", 
+    bgColor: "bg-orange-500",
+    icon: ActivityIcon 
+  },
+  maintenance: { 
+    label: "Maintenance", 
+    color: "#eab308", 
+    bgColor: "bg-yellow-500",
+    icon: Clock 
+  },
+} as const;
+
+export type ResourceStatus = keyof typeof STATUS_CONFIG;
 
 export const RESOURCE_CONFIG = {
   "ver": { label: "Vehicle Extrication", icon: Truck, color: "#2563eb" },

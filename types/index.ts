@@ -17,6 +17,8 @@ export type ResourceType =
   | "cssr" 
   | "ambulance";
 
+export type ResourceStatus = "ready" | "deployed" | "maintenance";
+
 export interface MarkerData {
   id: string;
   title: string;
@@ -26,6 +28,7 @@ export interface MarkerData {
   latitude: number;
   longitude: number;
   municipality: string;
+  status: ResourceStatus;
   createdAt?: string;
   user_id?: string;
 }

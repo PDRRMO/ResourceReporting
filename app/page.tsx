@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import ResourceMap from "@/components/ResourceMap";
-import { MarkerData, ResourceType } from "@/types";
+import { MarkerData, ResourceType, ResourceStatus } from "@/types";
 import { RESOURCE_CONFIG } from "@/lib/constants";
 import { 
   Search, 
@@ -56,11 +56,14 @@ const STATUS_CONFIG = {
   maintenance: { color: "#eab308", bgColor: "bg-yellow-500", label: "Maintenance", icon: Clock },
 };
 
+const STATUSES: ResourceStatus[] = ["ready", "deployed", "maintenance"];
+
 const generateRandomMockResource = (): Omit<MarkerData, "id" | "createdAt"> => {
   const type = RESOURCE_TYPES[Math.floor(Math.random() * RESOURCE_TYPES.length)];
   const municipality = MUNICIPALITIES[Math.floor(Math.random() * MUNICIPALITIES.length)];
   const names = RESOURCE_NAMES[type];
   const title = names[Math.floor(Math.random() * names.length)] + " " + Math.floor(Math.random() * 100);
+  const status = STATUSES[Math.floor(Math.random() * STATUSES.length)];
   
   const baseLat = 10.720321;
   const baseLng = 122.562019;
@@ -75,6 +78,7 @@ const generateRandomMockResource = (): Omit<MarkerData, "id" | "createdAt"> => {
     latitude: baseLat + latOffset,
     longitude: baseLng + lngOffset,
     municipality,
+    status,
   };
 };
 
@@ -91,9 +95,8 @@ const ResourceDetailSidebar = ({
   if (!isOpen || !marker) return null;
 
   const config = RESOURCE_CONFIG[marker.type];
-  // Generate deterministic status based on marker ID
-  const statusIndex = marker.id.charCodeAt(0) % 3;
-  const status = Object.keys(STATUS_CONFIG)[statusIndex] as keyof typeof STATUS_CONFIG;
+  // Use marker's status or default to ready
+  const status = marker.status || "ready";
   const statusConfig = STATUS_CONFIG[status];
   const StatusIcon = statusConfig.icon;
 
@@ -295,6 +298,7 @@ export default function HomePage() {
         const validatedData = parsedData.map((item: MarkerData) => ({
           ...item,
           municipality: item.municipality || "Iloilo City",
+          status: item.status || "ready",
         }));
         setMarkers(validatedData);
       } catch (error) {

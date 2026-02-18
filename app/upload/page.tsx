@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { MarkerData } from "@/components/mapComponent";
 import { RESOURCE_CONFIG, type ResourceType } from "@/lib/constants";
+import type { ResourceStatus } from "@/types";
 
 export default function UploadResourcePage() {
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,7 @@ export default function UploadResourcePage() {
     longitude: 0,
     description: "",
     municipality: "Iloilo City",
+    status: "ready" as ResourceStatus,
   });
 
   const municipalities = [

@@ -9,8 +9,8 @@ import Map, {
 } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { RESOURCE_CONFIG } from "@/lib/constants";
-import { MarkerData, ResourceType, ResourceCounts, MapViewState } from "@/types";
+import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
+import { MarkerData, ResourceType, ResourceCounts, MapViewState, ResourceStatus } from "@/types";
 
 interface ResourceMapProps {
   markers: MarkerData[];
@@ -276,6 +276,7 @@ export default function ResourceMap({
             offset={25}
           >
             <div className="p-1">
+              {/* Resource Type Badge */}
               <div className="flex items-center gap-2 mb-2">
                 <span
                   className="w-2 h-2 rounded-full"
@@ -288,12 +289,39 @@ export default function ResourceMap({
                   {RESOURCE_CONFIG[selectedMarker.type]?.label}
                 </span>
               </div>
+              
+              {/* Title */}
               <h3 className="font-bold text-slate-800 text-lg leading-tight mb-1">
                 {selectedMarker.title}
               </h3>
+              
+              {/* Status Badge */}
+              {selectedMarker.status && (() => {
+                const statusConfig = STATUS_CONFIG[selectedMarker.status];
+                const StatusIcon = statusConfig.icon;
+                return (
+                  <div className="flex items-center gap-2 mb-2">
+                    <span 
+                      className="w-2 h-2 rounded-full animate-pulse"
+                      style={{ backgroundColor: statusConfig.color, boxShadow: `0 0 8px ${statusConfig.color}` }}
+                    />
+                    <span className={`text-xs font-medium flex items-center gap-1 ${
+                      selectedMarker.status === 'ready' ? 'text-green-600' : 
+                      selectedMarker.status === 'deployed' ? 'text-orange-600' : 'text-yellow-600'
+                    }`}>
+                      <StatusIcon size={12} />
+                      {statusConfig.label}
+                    </span>
+                  </div>
+                );
+              })()}
+              
+              {/* Description */}
               <p className="text-slate-600 text-sm mb-3">
                 {selectedMarker.description}
               </p>
+              
+              {/* Info Grid */}
               <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
                 <div>
                   <span className="block text-[9px] text-slate-400 uppercase font-bold">
@@ -312,6 +340,8 @@ export default function ResourceMap({
                   </span>
                 </div>
               </div>
+              
+              {/* Action Button */}
               <button className="w-full mt-3 bg-slate-900 text-white py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors">
                 View Full Details
               </button>
