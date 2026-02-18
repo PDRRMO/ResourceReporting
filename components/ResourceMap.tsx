@@ -244,7 +244,16 @@ export default function ResourceMap({
         })
         .catch((err: Error) => console.error("Error expanding cluster:", err));
     } else {
-      setSelectedMarker(feature.properties as MarkerData);
+      const markerData = feature.properties as MarkerData;
+      setSelectedMarker(markerData);
+      
+      // Center map on the selected marker
+      mapRef.current?.flyTo({
+        center: [markerData.longitude, markerData.latitude],
+        zoom: Math.max(mapRef.current.getZoom(), 13),
+        duration: 500,
+        essential: true
+      });
     }
   };
 
