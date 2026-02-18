@@ -402,7 +402,7 @@ export default function HomePage() {
             <Search size={20} className="text-[#64748b] mr-3" />
             <input
               type="text"
-              placeholder="Search for Resources..."
+              placeholder="Search Municipality..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 bg-transparent outline-none text-[#1e293b] placeholder-[#64748b] font-medium text-sm "
