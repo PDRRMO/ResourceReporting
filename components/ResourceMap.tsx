@@ -304,21 +304,24 @@ export default function ResourceMap({
                 {selectedMarker.title}
               </h3>
               
-              {/* Status Badge */}
+              {/* Status Badge - Prominent */}
               {selectedMarker.status && (() => {
                 const statusConfig = STATUS_CONFIG[selectedMarker.status];
                 const StatusIcon = statusConfig.icon;
                 return (
-                  <div className="flex items-center gap-2 mb-2">
-                    <span 
-                      className="w-2 h-2 rounded-full animate-pulse"
-                      style={{ backgroundColor: statusConfig.color, boxShadow: `0 0 8px ${statusConfig.color}` }}
+                  <div className={`flex items-center gap-3 mb-3 px-3 py-2 rounded-lg justify-center ${
+                    selectedMarker.status === 'ready' ? 'bg-green-50 border border-green-200' : 
+                    selectedMarker.status === 'deployed' ? 'bg-orange-50 border border-orange-200' : 'bg-yellow-50 border border-yellow-200'
+                  }`}>
+                    <div 
+                      className="w-3 h-3 rounded-full animate-pulse"
+                      style={{ backgroundColor: statusConfig.color, boxShadow: `0 0 10px ${statusConfig.color}` }}
                     />
-                    <span className={`text-xs font-medium flex items-center gap-1 ${
-                      selectedMarker.status === 'ready' ? 'text-green-600' : 
-                      selectedMarker.status === 'deployed' ? 'text-orange-600' : 'text-yellow-600'
+                    <span className={`text-sm font-bold flex items-center gap-2 justify-center ${
+                      selectedMarker.status === 'ready' ? 'text-green-700' : 
+                      selectedMarker.status === 'deployed' ? 'text-orange-700' : 'text-yellow-700'
                     }`}>
-                      <StatusIcon size={12} />
+                      <StatusIcon size={16} />
                       {statusConfig.label}
                     </span>
                   </div>
@@ -349,11 +352,6 @@ export default function ResourceMap({
                   </span>
                 </div>
               </div>
-              
-              {/* Action Button */}
-              <button className="w-full mt-3 bg-slate-900 text-white py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors">
-                View Full Details
-              </button>
             </div>
           </Popup>
         )}

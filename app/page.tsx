@@ -1,510 +1,852 @@
-// app/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import ResourceMap from "@/components/ResourceMap";
+import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { MarkerData, ResourceType, ResourceStatus } from "@/types";
-import { RESOURCE_CONFIG } from "@/lib/constants";
-import { 
-  Search, 
-  User, 
-  SlidersHorizontal, 
-  LocateFixed, 
-  PlusCircle,
-  X,
-  Truck,
+import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
+import {
+  LayoutDashboard,
+  ArrowLeft,
+  Package,
   MapPin,
   Activity,
-  AlertCircle,
   CheckCircle2,
   Clock,
-  ToolCase
+  TrendingUp,
+  TrendingDown,
+  AlertCircle,
+  BarChart3,
+  PieChart,
+  Users,
+  Calendar,
+  Filter,
+  Download,
+  RefreshCw,
+  ChevronRight,
+  Truck,
+  Shield,
+  Building,
+  Zap,
+  MoreHorizontal,
+  FileText,
+  Map,
+  Search,
 } from "lucide-react";
-import Image from "next/image";
 
-const RESOURCE_TYPES: ResourceType[] = [
-  "ver", "comm", "tools", "trucks", "watercraft", 
-  "fr", "har", "usar", "wasar", "ews", "ems", 
-  "firetruck", "cssr", "ambulance"
-];
+// Type definitions
+interface DashboardStats {
+  totalResources: number;
+  totalQuantity: number;
+  readyCount: number;
+  deployedCount: number;
+  maintenanceCount: number;
+  readinessPercentage: number;
+  deploymentPercentage: number;
+  maintenancePercentage: number;
+  averagePerMunicipality: number;
+  topMunicipality: { name: string; count: number };
+  mostCommonType: { type: string; count: number };
+  lastUpdated: Date | null;
+}
 
-const MUNICIPALITIES = [
-  "Iloilo City", "Oton", "Pavia", "Leganes", 
-  "Santa Barbara", "Dumangas"
-];
+interface StatusDistribution {
+  status: ResourceStatus;
+  count: number;
+  percentage: number;
+  change: number;
+}
 
-const RESOURCE_NAMES: Record<ResourceType, string[]> = {
-  ver: ["Vehicle Extrication Unit", "Crash Response Vehicle", "Auto Rescue Truck"],
-  comm: ["Mobile Command Center", "Radio Communications Van", "Emergency Dispatch Unit"],
-  tools: ["Equipment Transport", "Tool & Gear Vehicle", "Rescue Equipment Truck"],
-  trucks: ["Utility Truck", "Transport Vehicle", "General Service Truck"],
-  watercraft: ["Rescue Boat", "Marine Patrol Vessel", "Water Transport Unit"],
-  fr: ["Fire Engine Alpha", "Fire Suppression Unit", "Emergency Fire Truck"],
-  har: ["High Altitude Rescue Team", "Tower Rescue Unit", "Cliff Rescue Squad"],
-  usar: ["Urban Search Team", "Disaster Response Unit", "Collapse Rescue Squad"],
-  wasar: ["Water Rescue Team", "Marine Rescue Unit", "Coastal Response Team"],
-  ews: ["Early Warning Vehicle", "Alert System Unit", "Monitoring Station"],
-  ems: ["Emergency Medical Team", "Field Medics Unit", "Medical Response Squad"],
-  firetruck: ["Fire Engine", "Fire Apparatus", "Firefighting Truck"],
-  cssr: ["Structure Collapse Team", "Building Rescue Unit", "Rubble Rescue Squad"],
-  ambulance: ["Ambulance Unit", "Medical Transport", "Emergency Medical Vehicle"],
-};
+interface TypeDistribution {
+  type: ResourceType;
+  count: number;
+  percentage: number;
+}
 
-const STATUS_CONFIG = {
-  ready: { color: "#22c55e", bgColor: "bg-green-500", label: "Ready", icon: CheckCircle2 },
-  deployed: { color: "#f97316", bgColor: "bg-orange-500", label: "Deployed", icon: Activity },
-  maintenance: { color: "#eab308", bgColor: "bg-yellow-500", label: "Maintenance", icon: Clock },
-};
+interface MunicipalityStats {
+  name: string;
+  count: number;
+  ready: number;
+  deployed: number;
+  maintenance: number;
+  percentage: number;
+}
 
-const STATUSES: ResourceStatus[] = ["ready", "deployed", "maintenance"];
-
-const generateRandomMockResource = (): Omit<MarkerData, "id" | "createdAt"> => {
-  const type = RESOURCE_TYPES[Math.floor(Math.random() * RESOURCE_TYPES.length)];
-  const municipality = MUNICIPALITIES[Math.floor(Math.random() * MUNICIPALITIES.length)];
-  const names = RESOURCE_NAMES[type];
-  const title = names[Math.floor(Math.random() * names.length)] + " " + Math.floor(Math.random() * 100);
-  const status = STATUSES[Math.floor(Math.random() * STATUSES.length)];
+// Mock data generators for demonstration
+const generateMockResources = (): MarkerData[] => {
+  const municipalities = ["Iloilo City", "Oton", "Pavia", "Leganes", "Santa Barbara", "Dumangas"];
+  const types: ResourceType[] = ["ver", "comm", "tools", "trucks", "watercraft", "fr", "har", "usar", "wasar", "ews", "ems", "firetruck", "cssr", "ambulance"];
+  const statuses: ResourceStatus[] = ["ready", "deployed", "maintenance"];
   
-  const baseLat = 10.720321;
-  const baseLng = 122.562019;
-  const latOffset = (Math.random() - 0.5) * 0.1;
-  const lngOffset = (Math.random() - 0.5) * 0.1;
+  const resources: MarkerData[] = [];
   
-  return {
-    title,
-    description: `Emergency response unit for ${type} operations`,
-    type,
-    quantity: Math.floor(Math.random() * 10) + 1,
-    latitude: baseLat + latOffset,
-    longitude: baseLng + lngOffset,
-    municipality,
-    status,
-  };
+  for (let i = 0; i < 45; i++) {
+    const type = types[Math.floor(Math.random() * types.length)];
+    const municipality = municipalities[Math.floor(Math.random() * municipalities.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    resources.push({
+      id: `resource-${i}`,
+      title: `${RESOURCE_CONFIG[type]?.label || type} Unit ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}-${Math.floor(Math.random() * 100)}`,
+      description: `Emergency response unit for ${type} operations`,
+      type,
+      quantity: Math.floor(Math.random() * 8) + 1,
+      latitude: 10.720321 + (Math.random() - 0.5) * 0.1,
+      longitude: 122.562019 + (Math.random() - 0.5) * 0.1,
+      municipality,
+      status,
+      createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+  }
+  
+  return resources;
 };
 
-// Resource Detail Sidebar Component
-const ResourceDetailSidebar = ({ 
-  marker, 
-  isOpen, 
-  onClose 
-}: { 
-  marker: MarkerData | null; 
-  isOpen: boolean; 
-  onClose: () => void;
-}) => {
-  if (!isOpen || !marker) return null;
+// Stat Card Component
+const StatCard = ({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  trendUp,
+  color,
+  delay = 0,
+}: {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: React.ElementType;
+  trend?: string;
+  trendUp?: boolean;
+  color: string;
+  delay?: number;
+}) => (
+  <div
+    className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all duration-300 animate-in slide-in-from-bottom-4"
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">{title}</p>
+        <h3 className="text-3xl font-black text-slate-900 mt-2">{value}</h3>
+        <p className="text-sm text-slate-500 mt-1">{subtitle}</p>
+        {trend && (
+          <div className={`flex items-center gap-1 mt-3 text-sm font-medium ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
+            {trendUp ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+            <span>{trend}</span>
+          </div>
+        )}
+      </div>
+      <div
+        className="w-14 h-14 rounded-xl flex items-center justify-center"
+        style={{ backgroundColor: `${color}20` }}
+      >
+        <Icon size={28} style={{ color }} />
+      </div>
+    </div>
+  </div>
+);
 
-  const config = RESOURCE_CONFIG[marker.type];
-  // Use marker's status or default to ready
-  const status = marker.status || "ready";
-  const statusConfig = STATUS_CONFIG[status];
-  const StatusIcon = statusConfig.icon;
-
+// Status Card Component
+const StatusCard = ({
+  status,
+  count,
+  percentage,
+  change,
+  delay = 0,
+}: StatusDistribution & { delay?: number }) => {
+  const config = STATUS_CONFIG[status];
+  const Icon = config.icon;
+  
   return (
-    <div className="fixed left-0 top-0 h-full w-full md:w-[30vw] bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-r border-slate-200/50">
-      {/* Header with close button */}
-      <div className="flex items-center justify-between p-6 border-b border-slate-100">
-        <h2 className="text-lg font-bold text-[#1e293b] flex items-center gap-2"> <ToolCase size={28}/>Resource Details</h2>
-        <button 
-          onClick={onClose}
-          className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+    <div
+      className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all duration-300"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="flex items-center gap-4">
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center"
+          style={{ backgroundColor: `${config.color}20` }}
         >
-          <X size={20} className="text-slate-500" />
-        </button>
-      </div>
-
-      <div className="p-6 space-y-6 overflow-y-auto h-[calc(100%-80px)]">
-        {/* Image Placeholder */}
-        <div className="w-full h-48 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-slate-300">
-          <div className="text-center">
-            <Truck size={48} className="text-slate-400 mx-auto mb-2" />
-            <span className="text-sm text-slate-500">Equipment Photo</span>
-          </div>
+          <Icon size={24} style={{ color: config.color }} />
         </div>
-
-        {/* Resource Name */}
-        <div>
-          <h1 className="text-2xl font-black text-[#1e293b] leading-tight mb-2">
-            {marker.title}
-          </h1>
-          <div className="flex items-center gap-2">
-            <span 
-              className="w-2 h-2 rounded-full animate-pulse"
-              style={{ backgroundColor: statusConfig.color, boxShadow: `0 0 8px ${statusConfig.color}` }}
-            />
-            <span className="text-sm font-medium text-slate-600 flex items-center gap-1">
-              <StatusIcon size={14} className={status === 'ready' ? 'text-green-500' : status === 'deployed' ? 'text-orange-500' : 'text-yellow-500'} />
-              {statusConfig.label}
-            </span>
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-slate-900">{config.label}</h4>
+            <span className="text-2xl font-black text-slate-900">{count}</span>
           </div>
-        </div>
-
-        {/* Resource Type Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563eb]/10 rounded-xl">
-          {config?.icon && <config.icon size={18} className="text-[#2563eb]" />}
-          <span className="text-sm font-semibold text-[#2563eb]">{config?.label}</span>
-        </div>
-
-        {/* Key Information Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-            <div className="flex items-center gap-2 mb-1">
-              <Activity size={14} className="text-slate-400" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quantity</span>
-            </div>
-            <span className="text-2xl font-black text-[#1e293b]">{marker.quantity}</span>
-          </div>
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-            <div className="flex items-center gap-2 mb-1">
-              <MapPin size={14} className="text-slate-400" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Municipality</span>
-            </div>
-            <span className="text-lg font-bold text-[#1e293b]">{marker.municipality}</span>
-          </div>
-        </div>
-
-        {/* Detailed Specifications */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <AlertCircle size={16} className="text-[#2563eb]" />
-            Detailed Specifications
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-slate-100">
-              <span className="text-sm text-slate-500">Resource ID</span>
-              <span className="text-sm font-mono font-medium text-slate-700">{marker.id.slice(0, 8)}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-slate-100">
-              <span className="text-sm text-slate-500">Coordinates</span>
-              <span className="text-sm font-mono text-slate-700">
-                {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
+          <div className="mt-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">{percentage}% of total</span>
+              <span className={`font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {change >= 0 ? '+' : ''}{change}%
               </span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-slate-100">
-              <span className="text-sm text-slate-500">Last Updated</span>
-              <span className="text-sm text-slate-700">
-                {marker.createdAt ? new Date(marker.createdAt).toLocaleDateString() : 'N/A'}
-              </span>
-            </div>
-            <div className="pt-2">
-              <span className="text-sm text-slate-500 block mb-2">Description</span>
-              <p className="text-sm text-slate-700 leading-relaxed">{marker.description}</p>
+            <div className="h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${percentage}%`, backgroundColor: config.color }}
+              />
             </div>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          <button className="w-full py-3 bg-[#2563eb] text-white rounded-xl font-semibold hover:bg-[#1d4ed8] transition-colors shadow-lg shadow-blue-500/25">
-            Update Status
-          </button>
-          <button className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors">
-            View History
-          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// Filter Modal Component
-const FilterModal = ({ 
-  isOpen, 
-  onClose, 
-  activeFilters, 
-  onFilterChange 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void;
-  activeFilters: ResourceType[];
-  onFilterChange: (filters: ResourceType[]) => void;
-}) => {
-  if (!isOpen) return null;
-
-  const toggleFilter = (type: ResourceType) => {
-    if (activeFilters.includes(type)) {
-      onFilterChange(activeFilters.filter(t => t !== type));
-    } else {
-      onFilterChange([...activeFilters, type]);
-    }
-  };
-
+// Resource Type Card Component
+const TypeCard = ({
+  type,
+  count,
+  percentage,
+  delay = 0,
+}: TypeDistribution & { delay?: number }) => {
+  const config = RESOURCE_CONFIG[type];
+  const Icon = config?.icon || Package;
+  
   return (
-    <div className="fixed inset-0 z-50 flex  items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden mx-2 md:w-[50vw]">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-[#1e293b]">Filter Resources</h2>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
-            <X size={20} className="text-slate-500" />
-          </button>
-        </div>
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
-          <div className="grid grid-cols-2 gap-3">
-            {(Object.keys(RESOURCE_CONFIG) as ResourceType[]).map((type) => {
-              const config = RESOURCE_CONFIG[type];
-              const isActive = activeFilters.includes(type);
-              return (
-                <button
-                  key={type}
-                  onClick={() => toggleFilter(type)}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                    isActive 
-                      ? "border-[#2563eb] bg-[#2563eb]/5" 
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  {config?.icon && <config.icon size={20} className={isActive ? "text-[#2563eb]" : "text-slate-400"} />}
-                  <span className={`text-sm font-medium ${isActive ? "text-[#2563eb]" : "text-slate-600"}`}>
-                    {config?.label}
-                  </span>
-                </button>
-              );
-            })}
+    <div
+      className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-4"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+        <Icon size={20} className="text-blue-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-semibold text-slate-900 truncate">{config?.label || type}</h4>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full"
+              style={{ width: `${percentage}%` }}
+            />
           </div>
+          <span className="text-sm font-bold text-slate-700">{count}</span>
         </div>
-        <div className="p-6 border-t border-slate-100 flex gap-3">
-          <button 
-            onClick={() => onFilterChange(RESOURCE_TYPES)}
-            className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors"
+      </div>
+      <span className="text-xs text-slate-400 font-medium">{percentage}%</span>
+    </div>
+  );
+};
+
+// Municipality Row Component
+const MunicipalityRow = ({
+  name,
+  count,
+  ready,
+  deployed,
+  maintenance,
+  percentage,
+  index,
+}: MunicipalityStats & { index: number }) => (
+  <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-sm transition-all duration-200">
+    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm">
+      #{index + 1}
+    </div>
+    <div className="flex-1 min-w-0">
+      <h4 className="font-semibold text-slate-900">{name}</h4>
+      <div className="flex items-center gap-4 mt-1 text-xs">
+        <span className="flex items-center gap-1 text-green-600">
+          <CheckCircle2 size={12} />
+          {ready} ready
+        </span>
+        <span className="flex items-center gap-1 text-orange-600">
+          <Activity size={12} />
+          {deployed} deployed
+        </span>
+        <span className="flex items-center gap-1 text-yellow-600">
+          <Clock size={12} />
+          {maintenance} maint.
+        </span>
+      </div>
+    </div>
+    <div className="text-right">
+      <p className="text-xl font-black text-slate-900">{count}</p>
+      <p className="text-xs text-slate-400">{percentage}% of total</p>
+    </div>
+  </div>
+);
+
+// Activity Item Component
+const ActivityItem = ({
+  title,
+  description,
+  time,
+  type,
+  delay = 0,
+}: {
+  title: string;
+  description: string;
+  time: string;
+  type: 'added' | 'updated' | 'deployed' | 'maintenance';
+  delay?: number;
+}) => {
+  const typeConfig = {
+    added: { color: '#22c55e', icon: PlusIcon, label: 'Added' },
+    updated: { color: '#2563eb', icon: RefreshCw, label: 'Updated' },
+    deployed: { color: '#f97316', icon: Activity, label: 'Deployed' },
+    maintenance: { color: '#eab308', icon: Clock, label: 'Maintenance' },
+  };
+  
+  const config = typeConfig[type];
+  const Icon = config.icon;
+  
+  return (
+    <div
+      className="flex items-start gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-sm transition-all duration-200"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: `${config.color}15` }}
+      >
+        <Icon size={18} style={{ color: config.color }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-slate-900">{title}</h4>
+          <span
+            className="text-xs font-medium px-2 py-1 rounded-full"
+            style={{ backgroundColor: `${config.color}15`, color: config.color }}
           >
-            Select All
-          </button>
-          <button 
-            onClick={onClose}
-            className="flex-1 py-3 bg-[#2563eb] text-white rounded-xl font-semibold hover:bg-[#1d4ed8] transition-colors"
-          >
-            Apply Filters
-          </button>
+            {config.label}
+          </span>
         </div>
+        <p className="text-sm text-slate-500 mt-1">{description}</p>
+        <p className="text-xs text-slate-400 mt-2">{time}</p>
       </div>
     </div>
   );
 };
 
-export default function HomePage() {
+// Plus Icon for activity
+function PlusIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </svg>
+  );
+}
+
+// Quick Action Button
+const QuickAction = ({
+  icon: Icon,
+  label,
+  href,
+  color,
+  delay = 0,
+}: {
+  icon: React.ElementType;
+  label: string;
+  href: string;
+  color: string;
+  delay?: number;
+}) => (
+  <Link
+    href={href}
+    className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md hover:border-blue-300 transition-all duration-200 group"
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <div
+      className="w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"
+      style={{ backgroundColor: `${color}15` }}
+    >
+      <Icon size={24} style={{ color }} />
+    </div>
+    <span className="font-semibold text-slate-700 group-hover:text-slate-900">{label}</span>
+    <ChevronRight size={18} className="ml-auto text-slate-400 group-hover:text-slate-600" />
+  </Link>
+);
+
+export default function DashboardPage() {
   const [markers, setMarkers] = useState<MarkerData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ResourceType[]>(['ver']);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
+  // Load data
   useEffect(() => {
-    const loadResources = () => {
+    const loadData = () => {
       try {
         const savedData = localStorage.getItem("map-resources");
-        const parsedData = savedData ? JSON.parse(savedData) : [];
-        const validatedData = parsedData.map((item: MarkerData) => ({
-          ...item,
-          municipality: item.municipality || "Iloilo City",
-          status: item.status || "ready",
-        }));
-        setMarkers(validatedData);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          setMarkers(parsed);
+        } else {
+          // Use mock data if no saved data
+          setMarkers(generateMockResources());
+        }
       } catch (error) {
-        console.error("Error loading resources:", error);
-        setMarkers([]);
+        console.error("Error loading data:", error);
+        setMarkers(generateMockResources());
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadResources();
+    loadData();
+  }, []);
 
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "map-resources") {
-        loadResources();
+  // Refresh data
+  const handleRefresh = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      const savedData = localStorage.getItem("map-resources");
+      if (savedData) {
+        setMarkers(JSON.parse(savedData));
       }
-    };
+      setLastRefresh(new Date());
+      setIsLoading(false);
+    }, 500);
+  };
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
-  const handleMarkerSelect = useCallback((marker: MarkerData | null) => {
-    setSelectedMarker(marker);
-    setIsSidebarOpen(!!marker);
-  }, []);
-
-  const addMockData = () => {
-    const existingData = JSON.parse(localStorage.getItem("map-resources") || "[]");
-    const numResources = Math.floor(Math.random() * 5) + 3;
+  // Calculate comprehensive statistics
+  const stats = useMemo((): DashboardStats => {
+    const totalResources = markers.length;
+    const totalQuantity = markers.reduce((sum, m) => sum + (m.quantity || 0), 0);
     
-    const newMockData: MarkerData[] = Array.from({ length: numResources }, () => {
-      const resource = generateRandomMockResource();
-      return {
-        ...resource,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString()
-      };
+    const readyCount = markers.filter(m => m.status === 'ready').length;
+    const deployedCount = markers.filter(m => m.status === 'deployed').length;
+    const maintenanceCount = markers.filter(m => m.status === 'maintenance').length;
+    
+    const readinessPercentage = totalResources > 0 ? Math.round((readyCount / totalResources) * 100) : 0;
+    const deploymentPercentage = totalResources > 0 ? Math.round((deployedCount / totalResources) * 100) : 0;
+    const maintenancePercentage = totalResources > 0 ? Math.round((maintenanceCount / totalResources) * 100) : 0;
+    
+    // Municipality stats
+    const municipalityCounts: Record<string, number> = {};
+    markers.forEach(m => {
+      municipalityCounts[m.municipality] = (municipalityCounts[m.municipality] || 0) + 1;
     });
     
-    const updatedData = [...existingData, ...newMockData];
-    localStorage.setItem("map-resources", JSON.stringify(updatedData));
-    setMarkers(updatedData);
-  };
+    const municipalityEntries = Object.entries(municipalityCounts);
+    const averagePerMunicipality = municipalityEntries.length > 0
+      ? Math.round(totalResources / municipalityEntries.length)
+      : 0;
+    
+    const topMunicipality: [string, number] = municipalityEntries.length > 0
+      ? municipalityEntries.sort((a, b) => (b[1] as number) - (a[1] as number))[0] as [string, number]
+      : ['None', 0];
+    
+    // Most common type
+    const typeCounts: Record<string, number> = {};
+    markers.forEach(m => {
+      typeCounts[m.type] = (typeCounts[m.type] || 0) + 1;
+    });
+    
+    const mostCommonTypeEntry: [string, number] = Object.entries(typeCounts).length > 0
+      ? Object.entries(typeCounts).sort((a, b) => (b[1] as number) - (a[1] as number))[0] as [string, number]
+      : ['none', 0];
+    
+    return {
+      totalResources,
+      totalQuantity,
+      readyCount,
+      deployedCount,
+      maintenanceCount,
+      readinessPercentage,
+      deploymentPercentage,
+      maintenancePercentage,
+      averagePerMunicipality,
+      topMunicipality: { name: topMunicipality[0], count: topMunicipality[1] },
+      mostCommonType: { type: mostCommonTypeEntry[0], count: mostCommonTypeEntry[1] },
+      lastUpdated: markers.length > 0
+        ? new Date(Math.max(...markers.map(m => new Date(m.createdAt || 0).getTime())))
+        : null,
+    };
+  }, [markers]);
 
-  const centerToLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          // Dispatch event to center map on user's location
-          window.dispatchEvent(new CustomEvent('center-map', { 
-            detail: { latitude, longitude } 
-          }));
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          alert("Unable to get your location. Please enable location services.");
-        }
-      );
-    } else {
-      alert("Geolocation is not supported by your browser.");
-    }
-  };
+  // Status distribution
+  const statusDistribution = useMemo((): StatusDistribution[] => {
+    const total = markers.length;
+    return [
+      {
+        status: 'ready',
+        count: stats.readyCount,
+        percentage: stats.readinessPercentage,
+        change: 5, // Mock change - in real app would compare to previous period
+      },
+      {
+        status: 'deployed',
+        count: stats.deployedCount,
+        percentage: stats.deploymentPercentage,
+        change: -2,
+      },
+      {
+        status: 'maintenance',
+        count: stats.maintenanceCount,
+        percentage: stats.maintenancePercentage,
+        change: 1,
+      },
+    ];
+  }, [markers, stats]);
+
+  // Type distribution (top 8)
+  const typeDistribution = useMemo((): TypeDistribution[] => {
+    const typeCounts: Record<ResourceType, number> = {
+      ver: 0, comm: 0, tools: 0, trucks: 0, watercraft: 0,
+      fr: 0, har: 0, usar: 0, wasar: 0, ews: 0, ems: 0,
+      firetruck: 0, cssr: 0, ambulance: 0,
+    };
+    
+    markers.forEach(m => {
+      typeCounts[m.type] = (typeCounts[m.type] || 0) + 1;
+    });
+    
+    const total = markers.length;
+    
+    return Object.entries(typeCounts)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([type, count]) => ({
+        type: type as ResourceType,
+        count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      }));
+  }, [markers]);
+
+  // Municipality stats
+  const municipalityStats = useMemo((): MunicipalityStats[] => {
+    const stats: Record<string, { count: number; ready: number; deployed: number; maintenance: number }> = {};
+    
+    markers.forEach(m => {
+      if (!stats[m.municipality]) {
+        stats[m.municipality] = { count: 0, ready: 0, deployed: 0, maintenance: 0 };
+      }
+      stats[m.municipality].count++;
+      stats[m.municipality][m.status]++;
+    });
+    
+    const total = markers.length;
+    
+    return Object.entries(stats)
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        ready: data.ready,
+        deployed: data.deployed,
+        maintenance: data.maintenance,
+        percentage: total > 0 ? Math.round((data.count / total) * 100) : 0,
+      }));
+  }, [markers]);
+
+  // Recent activity (mock data based on actual resources)
+  const recentActivity = useMemo(() => {
+    return markers
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 5)
+      .map((m, i) => ({
+        title: m.title,
+        description: `${RESOURCE_CONFIG[m.type]?.label || m.type} in ${m.municipality}`,
+        time: m.createdAt
+          ? new Date(m.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : 'Recently',
+        type: ['added', 'updated', 'deployed', 'maintenance'][i % 4] as 'added' | 'updated' | 'deployed' | 'maintenance',
+      }));
+  }, [markers]);
 
   if (isLoading) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-[#2563eb] border-t-transparent mx-auto mb-6"></div>
-          <p className="text-[#64748b] font-medium text-lg">Loading PDRRMO Resource Management...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Loading Dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen relative overflow-hidden bg-slate-900">
-      {/* Map Background */}
-      <div className="absolute inset-0">
-        <ResourceMap 
-          markers={markers} 
-          activeZones={6}
-          onMarkerSelect={handleMarkerSelect}
-          selectedMarker={selectedMarker}
-          activeFilters={activeFilters}
-          searchQuery={searchQuery}
-        />
-      </div>
-
-      {/* Glassmorphism Header */}
-      <header className="absolute top-6 z-40 flex items-center gap-1 w-[95vw] mx-2 md:gap-5 md:ml-5">
-        {/* Logo */}
-        <div className="w-15 h-15 bg-[#1e293b] rounded-full flex items-center justify-center shadow-xl">
-          <Image src='/logo.png' width={100} height={100}  alt="Logo"/>
-        </div>
-        
-        {/* Search Bar */}
-        <div className="relative w-70 md:w-100">
-          <div className="flex items-center bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-3.5">
-            <Search size={20} className="text-[#64748b] mr-3" />
-            <input
-              type="text"
-              placeholder="Search Municipality..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent outline-none text-[#1e293b] placeholder-[#64748b] font-medium text-sm "
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery("")}
-                className="ml-2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="dashboard-header bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <div className="relative w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Image src="/logo.png" alt="PDRRMO Logo" width={32} height={32} className="object-contain" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">PDRRMO Iloilo</h1>
+                <p className="text-xs text-slate-500">Resource Management System</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRefresh}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               >
-                <X size={16} className="text-slate-400" />
+                <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
-            )}
+              <Link
+                href="/"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                <ArrowLeft size={18} />
+                <span className="hidden sm:inline">Back to Map</span>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Right Control Panel */}
-      <div className="absolute top-25 right-6 z-40 flex flex-col gap-3 md:top-5">
-        {/* Add Mock Data Button */}
-        <button
-          onClick={addMockData}
-          className="w-12 h-12 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 flex items-center justify-center hover:bg-white transition-all group"
-          title="Add Mock Data"
-        >
-          <PlusCircle size={22} className="text-[#2563eb] group-hover:scale-110 transition-transform" />
-        </button>
-
-        {/* User Profile */}
-        <button className="w-12 h-12 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 flex items-center justify-center hover:bg-white transition-all group">
-          <User size={22} className="text-[#1e293b] group-hover:scale-110 transition-transform" />
-        </button>
-
-        {/* Filter Settings */}
-        <button 
-          onClick={() => setIsFilterOpen(true)}
-          className="w-12 h-12 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 flex items-center justify-center hover:bg-white transition-all group relative"
-        >
-          <SlidersHorizontal size={22} className="text-[#1e293b] group-hover:scale-110 transition-transform" />
-          {activeFilters.length < RESOURCE_TYPES.length && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#2563eb] rounded-full border-2 border-white" />
-          )}
-        </button>
-
-        {/* GPS Center */}
-        <button 
-          onClick={centerToLocation}
-          className="w-12 h-12 bg-[#2563eb] rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center hover:bg-[#1d4ed8] transition-all group"
-        >
-          <LocateFixed size={22} className="text-white group-hover:scale-110 transition-transform" />
-        </button>
-      </div>
-
-      {/* Resource Detail Sidebar */}
-      <ResourceDetailSidebar 
-        marker={selectedMarker}
-        isOpen={isSidebarOpen}
-        onClose={() => {
-          setIsSidebarOpen(false);
-          setSelectedMarker(null);
-        }}
-      />
-
-      {/* Backdrop when sidebar is open */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-40"
-          onClick={() => {
-            setIsSidebarOpen(false);
-            setSelectedMarker(null);
-          }}
-        />
-      )}
-
-      {/* Filter Modal */}
-      <FilterModal
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        activeFilters={activeFilters}
-        onFilterChange={setActiveFilters}
-      />
-
-      {/* Stats Badge - Bottom Left */}
-      <div className="absolute bottom-6 mx-4 z-40">
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 px-5 py-4">
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-xs font-bold text-[#64748b] uppercase tracking-wider">Total Resources</p>
-              <p className="text-2xl font-black text-[#1e293b]">{markers.length}</p>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <LayoutDashboard size={24} className="text-blue-600" />
             </div>
-            <div className="w-px h-10 bg-slate-200" />
             <div>
-              <p className="text-xs font-bold text-[#64748b] uppercase tracking-wider">Active Zones</p>
-              <p className="text-2xl font-black text-[#2563eb]">6</p>
-            </div>
-            <div className="w-px h-10 bg-slate-200" />
-            <div>
-              <p className="text-xs font-bold text-[#64748b] uppercase tracking-wider">Ready Units</p>
-              <p className="text-2xl font-black text-green-500">{Math.floor(markers.length * 0.7)}</p>
+              <h2 className="text-2xl font-bold text-slate-900">Dashboard</h2>
+              <p className="text-sm text-slate-500">
+                Last updated: {lastRefresh.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
             </div>
           </div>
         </div>
-      </div>
+
+        {/* Key Statistics Grid */}
+        <div className="key-stats-section grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard
+            title="Total Resources"
+            value={stats.totalResources}
+            subtitle={`${stats.totalQuantity} total units`}
+            icon={Package}
+            trend="+12% from last month"
+            trendUp={true}
+            color="#2563eb"
+            delay={0}
+          />
+          <StatCard
+            title="Ready to Deploy"
+            value={stats.readyCount}
+            subtitle={`${stats.readinessPercentage}% readiness rate`}
+            icon={CheckCircle2}
+            trend="+5% from last week"
+            trendUp={true}
+            color="#22c55e"
+            delay={100}
+          />
+          <StatCard
+            title="Currently Deployed"
+            value={stats.deployedCount}
+            subtitle="Active operations"
+            icon={Activity}
+            trend="-2% from yesterday"
+            trendUp={false}
+            color="#f97316"
+            delay={200}
+          />
+          <StatCard
+            title="Under Maintenance"
+            value={stats.maintenanceCount}
+            subtitle="Scheduled repairs"
+            icon={Clock}
+            trend="+1 from last week"
+            trendUp={false}
+            color="#eab308"
+            delay={300}
+          />
+        </div>
+
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Status & Types */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Status Distribution */}
+            <section className="status-distribution-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                    <PieChart size={24} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Status Distribution</h3>
+                    <p className="text-sm text-slate-500">Current operational status of all resources</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {statusDistribution.map((status, index) => (
+                  <StatusCard key={status.status} {...status} delay={index * 100} />
+                ))}
+              </div>
+            </section>
+
+            {/* Resource Types */}
+            <section className="resource-types-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+                    <BarChart3 size={24} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Resource Types</h3>
+                    <p className="text-sm text-slate-500">Distribution by equipment category</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {typeDistribution.map((type, index) => (
+                  <TypeCard key={type.type} {...type} delay={index * 50} />
+                ))}
+              </div>
+            </section>
+
+            {/* Municipalities Breakdown */}
+            <section className="municipalities-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                    <Building size={24} className="text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Municipality Distribution</h3>
+                    <p className="text-sm text-slate-500">Resources organized by location</p>
+                  </div>
+                </div>
+                <span className="text-sm text-slate-500">
+                  {municipalityStats.length} municipalities
+                </span>
+              </div>
+              <div className="space-y-3">
+                {municipalityStats.map((municipality, index) => (
+                  <MunicipalityRow key={municipality.name} {...municipality} index={index} />
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* Right Column - Activity & Quick Actions */}
+          <div className="space-y-8">
+            {/* Quick Actions */}
+            <section className="quick-actions-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+                  <Zap size={24} className="text-orange-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Quick Actions</h3>
+              </div>
+              <div className="space-y-3">
+                <QuickAction
+                  icon={Map}
+                  label="View Live Map"
+                  href="/"
+                  color="#2563eb"
+                  delay={0}
+                />
+                <QuickAction
+                  icon={PlusIcon}
+                  label="Add New Resource"
+                  href="/upload"
+                  color="#22c55e"
+                  delay={100}
+                />
+                <QuickAction
+                  icon={Search}
+                  label="Search Resources"
+                  href="/"
+                  color="#8b5cf6"
+                  delay={200}
+                />
+                <QuickAction
+                  icon={FileText}
+                  label="Generate Report"
+                  href="#"
+                  color="#f59e0b"
+                  delay={300}
+                />
+              </div>
+            </section>
+
+            {/* Summary Stats */}
+            <section className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <TrendingUp size={20} className="text-blue-400" />
+                Summary Statistics
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-300">Average per Municipality</span>
+                  <span className="font-bold text-lg">{stats.averagePerMunicipality}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-300">Top Municipality</span>
+                  <span className="font-bold">{stats.topMunicipality.name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-300">Most Common Type</span>
+                  <span className="font-bold">{RESOURCE_CONFIG[stats.mostCommonType.type as ResourceType]?.label || stats.mostCommonType.type}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-300">Readiness Rate</span>
+                  <span className={`font-bold text-lg ${stats.readinessPercentage >= 70 ? 'text-green-400' : stats.readinessPercentage >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {stats.readinessPercentage}%
+                  </span>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-700">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400">System Status</span>
+                  <span className="flex items-center gap-2 text-sm text-green-400">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                    Operational
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* Recent Activity */}
+            <section className="recent-activity-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                    <Activity size={24} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {recentActivity.length > 0 ? (
+                  recentActivity.map((activity, index) => (
+                    <ActivityItem key={index} {...activity} delay={index * 100} />
+                  ))
+                ) : (
+                  <p className="text-center text-slate-400 py-8">No recent activity</p>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-slate-200 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between text-sm text-slate-500">
+            <p>PDRRMO Iloilo Province Resource Management System</p>
+            <p> 2024 All Rights Reserved</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
