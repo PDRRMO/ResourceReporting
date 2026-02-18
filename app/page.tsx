@@ -17,7 +17,8 @@ import {
   Activity,
   AlertCircle,
   CheckCircle2,
-  Clock
+  Clock,
+  ToolCase
 } from "lucide-react";
 import Image from "next/image";
 
@@ -97,10 +98,10 @@ const ResourceDetailSidebar = ({
   const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="fixed left-0 top-0 h-full w-full md:w-40 bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-r border-slate-200/50">
+    <div className="fixed left-0 top-0 h-full w-full md:w-[30vw] bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-r border-slate-200/50">
       {/* Header with close button */}
       <div className="flex items-center justify-between p-6 border-b border-slate-100">
-        <h2 className="text-lg font-bold text-[#1e293b]">Resource Details</h2>
+        <h2 className="text-lg font-bold text-[#1e293b] flex items-center gap-2"> <ToolCase size={28}/>Resource Details</h2>
         <button 
           onClick={onClose}
           className="p-2 hover:bg-slate-100 rounded-full transition-colors"
@@ -226,8 +227,8 @@ const FilterModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden mx-2">
+    <div className="fixed inset-0 z-50 flex  items-center justify-center bg-black/30 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden mx-2 md:w-[50vw]">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <h2 className="text-lg font-bold text-[#1e293b]">Filter Resources</h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full">
