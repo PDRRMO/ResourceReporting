@@ -5,9 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { MarkerData, ResourceType, ResourceStatus } from "@/types";
 import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
+import Header from "@/components/Header";
 import {
   LayoutDashboard,
-  ArrowLeft,
   Package,
   MapPin,
   Activity,
@@ -15,23 +15,11 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
-  AlertCircle,
   BarChart3,
   PieChart,
-  Users,
-  Calendar,
-  Filter,
-  Download,
-  RefreshCw,
-  ChevronRight,
-  Truck,
-  Shield,
   Building,
-  Zap,
-  MoreHorizontal,
-  FileText,
-  Map,
-  Search,
+  RefreshCw,
+  Plus,
 } from "lucide-react";
 
 // Type definitions
@@ -78,6 +66,14 @@ const generateMockResources = (): MarkerData[] => {
   const types: ResourceType[] = ["ver", "comm", "tools", "trucks", "watercraft", "fr", "har", "usar", "wasar", "ews", "ems", "firetruck", "cssr", "ambulance"];
   const statuses: ResourceStatus[] = ["ready", "deployed", "maintenance"];
   
+  // Generate random Philippine mobile number (+63 9XX XXX XXXX)
+  const generatePhilippineNumber = (): string => {
+    const prefixes = ["917", "918", "919", "920", "921", "922", "923", "924", "925", "926", "927", "928", "929", "930", "931", "932", "933", "934", "935", "936", "937", "938", "939", "940", "941", "942", "943", "944", "945", "946", "947", "948", "949", "950", "951", "952", "953", "954", "955", "956", "957", "958", "959", "970", "975", "976", "977", "978", "979", "989", "996", "997", "998", "999"];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const suffix = Math.floor(Math.random() * 10000000).toString().padStart(7, "0");
+    return `+63${prefix}${suffix}`;
+  };
+  
   const resources: MarkerData[] = [];
   
   for (let i = 0; i < 45; i++) {
@@ -96,6 +92,7 @@ const generateMockResources = (): MarkerData[] => {
       municipality,
       status,
       createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+      contactNumber: generatePhilippineNumber(),
     });
   }
   
@@ -284,7 +281,7 @@ const ActivityItem = ({
   delay?: number;
 }) => {
   const typeConfig = {
-    added: { color: '#22c55e', icon: PlusIcon, label: 'Added' },
+    added: { color: '#22c55e', icon: Plus, label: 'Added' },
     updated: { color: '#2563eb', icon: RefreshCw, label: 'Updated' },
     deployed: { color: '#f97316', icon: Activity, label: 'Deployed' },
     maintenance: { color: '#eab308', icon: Clock, label: 'Maintenance' },
@@ -320,57 +317,6 @@ const ActivityItem = ({
     </div>
   );
 };
-
-// Plus Icon for activity
-function PlusIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  );
-}
-
-// Quick Action Button
-const QuickAction = ({
-  icon: Icon,
-  label,
-  href,
-  color,
-  delay = 0,
-}: {
-  icon: React.ElementType;
-  label: string;
-  href: string;
-  color: string;
-  delay?: number;
-}) => (
-  <Link
-    href={href}
-    className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md hover:border-blue-300 transition-all duration-200 group"
-    style={{ animationDelay: `${delay}ms` }}
-  >
-    <div
-      className="w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"
-      style={{ backgroundColor: `${color}15` }}
-    >
-      <Icon size={24} style={{ color }} />
-    </div>
-    <span className="font-semibold text-slate-700 group-hover:text-slate-900">{label}</span>
-    <ChevronRight size={18} className="ml-auto text-slate-400 group-hover:text-slate-600" />
-  </Link>
-);
 
 export default function DashboardPage() {
   const [markers, setMarkers] = useState<MarkerData[]>([]);
@@ -574,37 +520,15 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="dashboard-header bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="relative w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Image src="/logo.png" alt="PDRRMO Logo" width={32} height={32} className="object-contain" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">PDRRMO Iloilo</h1>
-                <p className="text-xs text-slate-500">Resource Management System</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <ArrowLeft size={18} />
-                <span className="hidden sm:inline">Back to Map</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+        showBackButton={true}
+        backHref="/map"
+        backLabel="Back to Map"
+        showRefresh={true}
+        onRefresh={handleRefresh}
+        isRefreshing={isLoading}
+        tourName="dashboard"
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -624,7 +548,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Key Statistics Grid */}
-        <div className="key-stats-section grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="dashboard-stats-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
             title="Total Resources"
             value={stats.totalResources}
@@ -672,7 +596,7 @@ export default function DashboardPage() {
           {/* Left Column - Status & Types */}
           <div className="lg:col-span-2 space-y-8">
             {/* Status Distribution */}
-            <section className="status-distribution-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <section className="dashboard-status-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -692,7 +616,7 @@ export default function DashboardPage() {
             </section>
 
             {/* Resource Types */}
-            <section className="resource-types-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <section className="dashboard-types-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
@@ -712,7 +636,7 @@ export default function DashboardPage() {
             </section>
 
             {/* Municipalities Breakdown */}
-            <section className="municipalities-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <section className="dashboard-municipalities-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
@@ -737,46 +661,26 @@ export default function DashboardPage() {
 
           {/* Right Column - Activity & Quick Actions */}
           <div className="space-y-8">
-            {/* Quick Actions */}
-            <section className="quick-actions-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
-                  <Zap size={24} className="text-orange-600" />
+            {/* Recent Activity */}
+            <section className="dashboard-activity-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                    <Activity size={24} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Quick Actions</h3>
               </div>
               <div className="space-y-3">
-                <QuickAction
-                  icon={Map}
-                  label="View Live Map"
-                  href="/"
-                  color="#2563eb"
-                  delay={0}
-                />
-                <QuickAction
-                  icon={PlusIcon}
-                  label="Add New Resource"
-                  href="/upload"
-                  color="#22c55e"
-                  delay={100}
-                />
-                <QuickAction
-                  icon={Search}
-                  label="Search Resources"
-                  href="/"
-                  color="#8b5cf6"
-                  delay={200}
-                />
-                <QuickAction
-                  icon={FileText}
-                  label="Generate Report"
-                  href="#"
-                  color="#f59e0b"
-                  delay={300}
-                />
+                {recentActivity.length > 0 ? (
+                  recentActivity.map((activity, index) => (
+                    <ActivityItem key={index} {...activity} delay={index * 100} />
+                  ))
+                ) : (
+                  <p className="text-center text-slate-400 py-8">No recent activity</p>
+                )}
               </div>
             </section>
-
             {/* Summary Stats */}
             <section className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white">
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -814,26 +718,6 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* Recent Activity */}
-            <section className="recent-activity-section bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                    <Activity size={24} className="text-indigo-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {recentActivity.length > 0 ? (
-                  recentActivity.map((activity, index) => (
-                    <ActivityItem key={index} {...activity} delay={index * 100} />
-                  ))
-                ) : (
-                  <p className="text-center text-slate-400 py-8">No recent activity</p>
-                )}
-              </div>
-            </section>
           </div>
         </div>
       </main>

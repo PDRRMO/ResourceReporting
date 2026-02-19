@@ -92,7 +92,21 @@ export default function ResourceMap({
       type: "FeatureCollection" as const,
       features: validMarkers.map((m) => ({
         type: "Feature" as const,
-        properties: { ...m },
+        properties: {
+          id: m.id,
+          title: m.title,
+          description: m.description || "",
+          type: m.type,
+          quantity: m.quantity,
+          latitude: m.latitude,
+          longitude: m.longitude,
+          municipality: m.municipality,
+          status: m.status,
+          image: m.image || "",
+          createdAt: m.createdAt || "",
+          user_id: m.user_id || "",
+          ...(m.contactNumber && { contactNumber: m.contactNumber }),
+        },
         geometry: {
           type: "Point" as const,
           coordinates: [m.longitude, m.latitude],
@@ -352,6 +366,21 @@ export default function ResourceMap({
                   </span>
                 </div>
               </div>
+              
+              {/* Contact Number */}
+              {selectedMarker.contactNumber && (
+                <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
+                  <span className="block text-[9px] text-blue-500 uppercase font-bold mb-1">
+                    Contact Person
+                  </span>
+                  <a 
+                    href={`tel:${selectedMarker.contactNumber}`}
+                    className="text-sm font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1"
+                  >
+                    📞 {selectedMarker.contactNumber}
+                  </a>
+                </div>
+              )}
             </div>
           </Popup>
         )}

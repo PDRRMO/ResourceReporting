@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { TourButton } from "@/components/TourProvider";
+import QuickActionsMenu from "@/components/QuickActionsMenu";
 
 interface HeaderProps {
   /** Title displayed in the header */
@@ -89,6 +90,9 @@ export default function Header({
               </button>
             )}
 
+            {/* Quick Actions Burger Menu */}
+            <QuickActionsMenu />
+
             {/* Additional Custom Actions */}
             {additionalActions}
 
@@ -139,7 +143,7 @@ export function DashboardPageHeader({
     <Header
       showBackButton={true}
       backHref="/map"
-      backLabel="Back to Map"
+      backLabel="Go to Map"
       showRefresh={true}
       onRefresh={onRefresh}
       isRefreshing={isRefreshing}

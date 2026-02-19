@@ -24,6 +24,7 @@ import {
   AlertCircle,
   ToolCase,
   ArrowLeft,
+  Phone,
 } from "lucide-react";
 import type { MarkerData } from "@/types";
 import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
@@ -42,6 +43,7 @@ export default function UploadResourcePage() {
     municipality: string;
     status: ResourceStatus;
     image: string | undefined;
+    contactNumber: string;
   }>({
     title: "",
     type: "trucks",
@@ -52,6 +54,7 @@ export default function UploadResourcePage() {
     municipality: "Iloilo City",
     status: "ready",
     image: undefined,
+    contactNumber: "",
   });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -94,8 +97,15 @@ export default function UploadResourcePage() {
   };
 
   const handleSave = () => {
-    if (!formData.title || !formData.latitude || !formData.longitude) {
-      showError("Validation Error", "Please fill in all required fields.");
+    if (!formData.title || !formData.latitude || !formData.longitude || !formData.contactNumber) {
+      showError("Validation Error", "Please fill in all required fields including the contact number.");
+      return;
+    }
+
+    // Validate Philippine mobile number format (+63 followed by 10 digits)
+    const phoneRegex = /^\+63[0-9]{10}$/;
+    if (!phoneRegex.test(formData.contactNumber)) {
+      showError("Validation Error", "Please enter a valid Philippine mobile number (+63 followed by 10 digits).");
       return;
     }
 
@@ -127,6 +137,7 @@ export default function UploadResourcePage() {
       municipality: "Iloilo City",
       status: "ready",
       image: undefined,
+      contactNumber: "",
     });
   };
 
@@ -333,6 +344,38 @@ export default function UploadResourcePage() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* Contact Number - Person Responsible */}
+                <div className="upload-contact-field">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                    <Phone size={16} className="text-blue-500" />
+                    Contact Number (Person Responsible) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-medium text-sm">
+                      +63
+                    </span>
+                    <input
+                      type="tel"
+                      placeholder="9XX XXX XXXX"
+                      value={formData.contactNumber.replace(/^\+63/, "")}
+                      maxLength={12}
+                      className="w-full rounded-xl border-slate-200 bg-slate-50 pl-12 pr-3.5 py-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none border hover:bg-white"
+                      onChange={(e) => {
+                        const rawValue = e.target.value.replace(/\D/g, "");
+                        if (rawValue.length <= 10) {
+                          setFormData({
+                            ...formData,
+                            contactNumber: rawValue ? `+63${rawValue}` : "",
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Enter 10-digit Philippine mobile number (e.g., 9171234567)
+                  </p>
                 </div>
 
                 {/* GPS Coordinates */}

@@ -29,6 +29,7 @@ export interface MarkerData {
   longitude: number;
   municipality: string;
   status: ResourceStatus;
+  contactNumber: string;
   image?: string;
   createdAt?: string;
   user_id?: string;

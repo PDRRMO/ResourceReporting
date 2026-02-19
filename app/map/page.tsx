@@ -6,6 +6,7 @@ import { MarkerData, ResourceType, ResourceStatus } from "@/types";
 import { RESOURCE_CONFIG } from "@/lib/constants";
 import { useNotification } from "@/components/Notification";
 import { TourButton } from "@/components/TourProvider";
+import QuickActionsMenu from "@/components/QuickActionsMenu";
 import {
   Search,
   User,
@@ -21,7 +22,8 @@ import {
   Clock,
   ToolCase,
   Upload,
-  LayoutDashboard
+  LayoutDashboard,
+  Phone
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -62,6 +64,14 @@ const STATUS_CONFIG = {
 
 const STATUSES: ResourceStatus[] = ["ready", "deployed", "maintenance"];
 
+// Generate random Philippine mobile number (+63 9XX XXX XXXX)
+const generatePhilippineNumber = (): string => {
+  const prefixes = ["917", "918", "919", "920", "921", "922", "923", "924", "925", "926", "927", "928", "929", "930", "931", "932", "933", "934", "935", "936", "937", "938", "939", "940", "941", "942", "943", "944", "945", "946", "947", "948", "949", "950", "951", "952", "953", "954", "955", "956", "957", "958", "959", "970", "975", "976", "977", "978", "979", "989", "996", "997", "998", "999"];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const suffix = Math.floor(Math.random() * 10000000).toString().padStart(7, "0");
+  return `+63${prefix}${suffix}`;
+};
+
 const generateRandomMockResource = (): Omit<MarkerData, "id" | "createdAt"> => {
   const type = RESOURCE_TYPES[Math.floor(Math.random() * RESOURCE_TYPES.length)];
   const municipality = MUNICIPALITIES[Math.floor(Math.random() * MUNICIPALITIES.length)];
@@ -83,6 +93,7 @@ const generateRandomMockResource = (): Omit<MarkerData, "id" | "createdAt"> => {
     longitude: baseLng + lngOffset,
     municipality,
     status,
+    contactNumber: generatePhilippineNumber(),
   };
 };
 
@@ -307,6 +318,20 @@ const ResourceDetailSidebar = ({
               <span className="text-sm text-slate-500 block mb-2">Description</span>
               <p className="text-sm text-slate-700 leading-relaxed">{marker.description}</p>
             </div>
+            {marker.contactNumber && (
+              <div className="pt-3 border-t border-slate-100 mt-3">
+                <span className="text-sm text-slate-500 block mb-2 flex items-center gap-2">
+                  <Phone size={14} className="text-blue-500" />
+                  Contact Person
+                </span>
+                <a 
+                  href={`tel:${marker.contactNumber}`}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-semibold text-sm hover:bg-blue-100 transition-colors"
+                >
+                  📞 {marker.contactNumber}
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
@@ -421,6 +446,7 @@ export default function HomePage() {
           ...item,
           municipality: item.municipality || "Iloilo City",
           status: item.status || "ready",
+          contactNumber: item.contactNumber || generatePhilippineNumber(),
         }));
         setMarkers(validatedData);
       } catch (error) {
@@ -543,10 +569,10 @@ export default function HomePage() {
 
       {/* Glassmorphism Header */}
       <header 
-        className="map-header absolute top-6 z-40 flex items-center gap-1 w-[95vw] mx-2 md:ml-5"
+        className="map-header absolute top-6 z-40 flex items-center gap-2 w-[95vw] mx-2 md:ml-5"
       >
         {/* Logo */}
-        <div className="w-30 h-30 bg-[#1e293b] rounded-full flex items-center justify-center shadow-xl">
+        <div className="w-20 h-20 md:w-30 md:h-30 bg-[#1e293b] rounded-full flex items-center justify-center shadow-xl">
           <Image src='/logo.png' width={200} height={200}  alt="Logo"/>
         </div>
         
@@ -570,6 +596,11 @@ export default function HomePage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Quick Actions Menu */}
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-2 md:block hidden">
+          <QuickActionsMenu />
         </div>
       </header>
 

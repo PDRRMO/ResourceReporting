@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useRef, useCallback, createContext, useContext, useState, useEffect } from "react";
-import Shepherd from "shepherd.js";
+import React, { useRef, useCallback, createContext, useContext, useState, useEffect, useMemo } from "react";
+import Shepherd, { Tour, StepOptions } from "shepherd.js";
 import "shepherd.js/dist/css/shepherd.css";
-import { HelpCircle, X, AlertTriangle } from "lucide-react";
+import { HelpCircle, X, AlertTriangle, Sparkles } from "lucide-react";
+import { useNotification } from "./Notification";
+import { usePathname } from "next/navigation";
 
 // Tour context
 type TourContextType = {
@@ -12,6 +14,8 @@ type TourContextType = {
   isActive: boolean;
   currentStep: number;
   totalSteps: number;
+  showTourBadge: boolean;
+  dismissTourBadge: () => void;
 };
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
@@ -25,25 +29,50 @@ export function useTour() {
 }
 
 // Tour Button Component
-export function TourButton({ 
-  tourName, 
-  className = "" 
-}: { 
-  tourName: string; 
+export function TourButton({
+  tourName,
+  className = ""
+}: {
+  tourName: string;
   className?: string;
 }) {
-  const { startTour, isActive } = useTour();
+  const { startTour, isActive, showTourBadge, dismissTourBadge } = useTour();
 
   if (isActive) return null;
 
+  const handleClick = () => {
+    dismissTourBadge();
+    startTour(tourName);
+  };
+
   return (
-    <button
-      onClick={() => startTour(tourName)}
-      className={`flex items-center px-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors ${className}`}
-      title="Start Guided Tour"
-    >
-      <HelpCircle size={24} />
-    </button>
+    <div className="relative">
+      <button
+        onClick={handleClick}
+        className={`flex items-center px-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors ${className}`}
+        title="Start Guided Tour"
+      >
+        <HelpCircle size={24} />
+      </button>
+      {showTourBadge && (
+        <>
+          {/* Animated ping effect */}
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500"></span>
+          </span>
+          {/* Tooltip pointing to button */}
+          <div className="absolute -top-12 right-0 bg-amber-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-lg whitespace-nowrap animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={14} />
+              <span>Redo the tour!</span>
+            </div>
+            {/* Arrow pointing down */}
+            <div className="absolute -bottom-1.5 right-3 w-3 h-3 bg-amber-500 transform rotate-45"></div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -142,15 +171,19 @@ function ExitConfirmationModal({
 
 // Tour Provider Component
 export function TourProvider({ children }: { children: React.ReactNode }) {
-  const tourRef = useRef<any>(null);
+  const tourRef = useRef<Tour | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(0);
   const [currentTourName, setCurrentTourName] = useState<string | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showTourBadge, setShowTourBadge] = useState(false);
+  const { showSuccess } = useNotification();
+  const startTourRef = useRef<((tourName: string) => void) | null>(null);
+  const pathname = usePathname();
 
   // Common tour options
-  const defaultTourOptions = {
+  const defaultTourOptions = useMemo(() => ({
     defaultStepOptions: {
       cancelIcon: {
         enabled: true,
@@ -166,7 +199,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     },
     useModalOverlay: true,
     confirmCancel: false,
-  };
+  }), []);
 
   // Dashboard Tour Steps
   const dashboardTourSteps = [
@@ -175,7 +208,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       title: "Welcome to PDRRMO Dashboard",
       text: "This is your resource management command center. Let me show you around the key features.",
       attachTo: {
-        element: ".dashboard-header",
+        element: "main",
         on: "bottom" as const,
       },
       buttons: [
@@ -196,7 +229,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       title: "Key Statistics",
       text: "These cards show your most important metrics at a glance: total resources, readiness status, deployment count, and maintenance status.",
       attachTo: {
-        element: ".key-stats-section",
+        element: ".dashboard-stats-grid",
         on: "bottom" as const,
       },
       buttons: [
@@ -217,8 +250,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       title: "Status Distribution",
       text: "See how your resources are distributed across different statuses. Green means ready, orange means deployed, and yellow indicates maintenance.",
       attachTo: {
-        element: ".status-distribution-section",
-        on: "right" as const,
+        element: ".dashboard-status-section",
+        on: "bottom" as const,
       },
       buttons: [
         {
@@ -238,8 +271,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       title: "Resource Types",
       text: "View the breakdown of your resources by type - from fire trucks to ambulances, rescue boats to communication equipment.",
       attachTo: {
-        element: ".resource-types-section",
-        on: "right" as const,
+        element: ".dashboard-types-section",
+        on: "bottom" as const,
       },
       buttons: [
         {
@@ -259,7 +292,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       title: "Municipality Distribution",
       text: "See how resources are distributed across different municipalities. This helps you identify coverage gaps and plan deployments.",
       attachTo: {
-        element: ".municipalities-section",
+        element: ".dashboard-municipalities-section",
         on: "top" as const,
       },
       buttons: [
@@ -278,10 +311,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     {
       id: "quick-actions",
       title: "Quick Actions",
-      text: "Access frequently used features quickly: view the live map, add new resources, search the database, or generate reports.",
+      text: "Click the menu icon (☰) in the header to access quick actions: view the live map, add new resources, search the database, or generate reports.",
       attachTo: {
-        element: ".quick-actions-section",
-        on: "left" as const,
+        element: ".quick-actions-menu",
+        on: "bottom" as const,
       },
       buttons: [
         {
@@ -301,7 +334,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       title: "Recent Activity",
       text: "Stay up to date with the latest changes to your resources. See what was added, updated, or deployed recently.",
       attachTo: {
-        element: ".recent-activity-section",
+        element: ".dashboard-activity-section",
         on: "left" as const,
       },
       buttons: [
@@ -601,10 +634,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   ];
 
   // Tours configuration
-  const tours: Record<string, unknown[]> = {
-    dashboard: dashboardTourSteps,
-    map: mapTourSteps,
-    upload: uploadTourSteps,
+  const tours: Record<string, StepOptions[]> = {
+    dashboard: dashboardTourSteps as StepOptions[],
+    map: mapTourSteps as StepOptions[],
+    upload: uploadTourSteps as StepOptions[],
   };
 
   const startTour = useCallback((tourName: string) => {
@@ -624,7 +657,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     // Create new tour
     const tour = new Shepherd.Tour({
       ...defaultTourOptions,
-      steps: steps as any[],
+      steps: steps,
     });
 
     // Event handlers
@@ -644,9 +677,19 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       setCurrentStep(0);
       // Mark tour as completed in localStorage
       const completedTours = JSON.parse(localStorage.getItem("completedTours") || "[]");
-      if (currentTourName && !completedTours.includes(currentTourName)) {
+      const wasFirstTime = currentTourName && !completedTours.includes(currentTourName);
+      if (currentTourName && wasFirstTime) {
         completedTours.push(currentTourName);
         localStorage.setItem("completedTours", JSON.stringify(completedTours));
+        // Show notification and badge for first-time completion
+        setTimeout(() => {
+          showSuccess(
+            "Tour Completed!",
+            "You can redo the tour anytime by clicking the Help button in the header.",
+            6000
+          );
+          setShowTourBadge(true);
+        }, 500);
       }
     });
 
@@ -657,7 +700,41 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
     tourRef.current = tour;
     tour.start();
-  }, [defaultTourOptions, currentTourName]);
+  }, [defaultTourOptions, currentTourName, showSuccess, tours]);
+
+  // Assign to ref for use in effects
+  useEffect(() => {
+    startTourRef.current = startTour;
+  }, [startTour]);
+
+  // First-time tour check
+  useEffect(() => {
+    // Determine which tour to show based on the current route
+    let tourName: string | null = null;
+    if (pathname === "/") {
+      tourName = "dashboard";
+    } else if (pathname === "/map") {
+      tourName = "map";
+    }
+
+    // Only proceed if we're on a route that has a tour
+    if (!tourName) return;
+
+    // Check if user has seen the first-time experience for this specific tour
+    const hasSeenFirstTime = localStorage.getItem(`hasSeenFirstTime_${tourName}`);
+    if (!hasSeenFirstTime) {
+      // Wait for the page to fully load before starting the tour
+      const timer = setTimeout(() => {
+        // Check if this specific tour hasn't been completed
+        const completedTours = JSON.parse(localStorage.getItem("completedTours") || "[]");
+        if (!completedTours.includes(tourName)) {
+          startTourRef.current?.(tourName);
+          localStorage.setItem(`hasSeenFirstTime_${tourName}`, "true");
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [pathname]);
 
   const endTour = useCallback(() => {
     // Show exit confirmation modal instead of immediately ending
@@ -678,8 +755,12 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setShowExitModal(false);
   }, []);
 
+  const dismissTourBadge = useCallback(() => {
+    setShowTourBadge(false);
+  }, []);
+
   return (
-    <TourContext.Provider value={{ startTour, endTour, isActive, currentStep, totalSteps }}>
+    <TourContext.Provider value={{ startTour, endTour, isActive, currentStep, totalSteps, showTourBadge, dismissTourBadge }}>
       {children}
       {isActive && (
         <TourProgress
