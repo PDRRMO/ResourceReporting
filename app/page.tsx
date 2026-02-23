@@ -245,17 +245,23 @@ const MunicipalityRow = ({
     <div className="flex-1 min-w-0">
       <h4 className="font-semibold text-slate-900">{name}</h4>
       <div className="flex items-center gap-4 mt-1 text-xs">
-        <span className="flex items-center gap-1 text-green-600">
-          <CheckCircle2 size={12} />
-          {ready} ready
+        <span className="flex gap-1 text-green-600">
+          <CheckCircle2 size={12} /> {ready}
+          <div className="hidden md:flex flex-row">
+            ready
+          </div>   
         </span>
-        <span className="flex items-center gap-1 text-orange-600">
-          <Activity size={12} />
-          {deployed} deployed
+        <span className="flex gap-1 text-orange-600">
+          <Activity size={12} /> {deployed}
+          <div className="hidden md:flex flex-row">
+            deployed
+          </div>
         </span>
-        <span className="flex items-center gap-1 text-yellow-600">
-          <Clock size={12} />
-          {maintenance} maint.
+        <span className="flex gap-1 text-yellow-600">
+          <Clock size={12} /> {maintenance}
+          <div className="hidden md:flex flex-row">
+             maintenance
+          </div>
         </span>
       </div>
     </div>

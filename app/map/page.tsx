@@ -704,7 +704,7 @@ export default function HomePage() {
 
       {/* Stats Badge - Bottom Left */}
       <div 
-        className="map-stats-badge absolute bottom-6 z-40 left-6"
+        className="map-stats-badge absolute bottom-6 z-40 mx-5"
       >
         <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 px-5 py-4">
           <div className="flex items-center gap-6">
