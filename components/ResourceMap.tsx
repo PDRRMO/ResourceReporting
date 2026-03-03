@@ -11,6 +11,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
 import { MarkerData, ResourceType, ResourceCounts, MapViewState, ResourceStatus } from "@/types";
+import { getAllMunicipalities } from "@/lib/municipalities";
 
 interface ResourceMapProps {
   markers: MarkerData[];
@@ -20,6 +21,9 @@ interface ResourceMapProps {
   selectedMarker?: MarkerData | null;
   activeFilters?: ResourceType[];
   searchQuery?: string;
+  selectedMunicipality?: string | null;
+  onMunicipalitySelect?: (municipality: string | null) => void;
+  showMunicipalityBoundaries?: boolean;
 }
 
 const DEFAULT_VIEW_STATE: MapViewState = {
@@ -43,14 +47,60 @@ export default function ResourceMap({
   selectedMarker: externalSelectedMarker,
   activeFilters: externalFilters,
   searchQuery: externalSearchQuery,
+  selectedMunicipality: externalSelectedMunicipality,
+  onMunicipalitySelect,
+  showMunicipalityBoundaries = true,
 }: ResourceMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [internalFilters, setInternalFilters] = useState<ResourceType[]>(ALL_RESOURCE_TYPES);
   const [internalSearchQuery, setInternalSearchQuery] = useState("");
   const [internalSelectedMarker, setInternalSelectedMarker] = useState<MarkerData | null>(null);
+  const [municipalities, setMunicipalities] = useState<any[]>([]);
+  const [municipalityGeoJson, setMunicipalityGeoJson] = useState<any>(null);
 
   // Track whether the map + images are ready to receive data
   const [mapReady, setMapReady] = useState(false);
+
+  // Track whether municipality boundaries are loaded
+  const [boundariesLoaded, setBoundariesLoaded] = useState(false);
+
+  // Fetch municipality boundaries
+  useEffect(() => {
+    const fetchMunicipalities = async () => {
+      try {
+        const data = await getAllMunicipalities();
+        setMunicipalities(data);
+        
+        // Build GeoJSON from boundary shapes
+        const geojson: any = {
+          type: "FeatureCollection",
+          features: data
+            .filter((m: any) => m.boundary_shape)
+            .map((m: any) => ({
+              type: "Feature",
+              properties: {
+                name: m.name,
+                municipality_id: m.municipality_id,
+              },
+              geometry: m.boundary_shape,
+            })),
+        };
+        setMunicipalityGeoJson(geojson);
+      } catch (error) {
+        console.error("Error fetching municipalities:", error);
+      }
+    };
+    
+    if (showMunicipalityBoundaries) {
+      fetchMunicipalities();
+    }
+  }, [showMunicipalityBoundaries]);
+
+  // Ref for municipality GeoJSON
+  const municipalityGeoJsonRef = useRef(municipalityGeoJson);
+  useEffect(() => {
+    municipalityGeoJsonRef.current = municipalityGeoJson;
+  }, [municipalityGeoJson]);
 
   const activeFilters = externalFilters !== undefined ? externalFilters : internalFilters;
   const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
@@ -221,6 +271,87 @@ export default function ResourceMap({
     }
   }, [geojsonData, mapReady]); // ✅ fires when data changes AND when map first becomes ready
 
+  // Add municipality boundaries when both map and data are ready
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !showMunicipalityBoundaries) return;
+    if (!municipalityGeoJson?.features?.length) return;
+
+    const map = mapRef.current.getMap();
+
+    // Add source if not exists
+    if (!map.getSource("municipalities")) {
+      map.addSource("municipalities", {
+        type: "geojson",
+        data: municipalityGeoJson,
+      });
+    }
+
+    // Fill layer (semi-transparent)
+    if (!map.getLayer("municipality-fill")) {
+      map.addLayer({
+        id: "municipality-fill",
+        type: "fill",
+        source: "municipalities",
+        paint: {
+          "fill-color": "#3b82f6",
+          "fill-opacity": 0,
+        },
+      });
+    }
+
+    // Outline layer
+    if (!map.getLayer("municipality-line")) {
+      map.addLayer({
+        id: "municipality-line",
+        type: "line",
+        source: "municipalities",
+        paint: {
+          "line-color": "#1d4ed8",
+          "line-width": 2,
+        },
+      });
+    }
+
+    // Municipality label
+    if (!map.getLayer("municipality-label")) {
+      map.addLayer({
+        id: "municipality-label",
+        type: "symbol",
+        source: "municipalities",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 12,
+        },
+        paint: {
+          "text-color": "#1e40af",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2,
+        },
+      });
+    }
+
+    setBoundariesLoaded(true);
+  }, [mapReady, municipalityGeoJson, showMunicipalityBoundaries]);
+
+  // Toggle boundaries visibility
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current.getMap();
+
+    const layers = ["municipality-fill", "municipality-line", "municipality-label"];
+    
+    layers.forEach(layerId => {
+      if (map.getLayer(layerId)) {
+        if (showMunicipalityBoundaries) {
+          map.setLayoutProperty(layerId, "visibility", "visible");
+        } else {
+          map.setLayoutProperty(layerId, "visibility", "none");
+        }
+      }
+    });
+  }, [showMunicipalityBoundaries]);
+
   // Handle center-map events from parent
   useEffect(() => {
     const handleCenterMap = (event: Event) => {
@@ -236,12 +367,92 @@ export default function ResourceMap({
     return () => window.removeEventListener("center-map", handleCenterMap);
   }, []);
 
+  // Update municipality boundary styling based on selection
+  useEffect(() => {
+    if (!boundariesLoaded || !mapRef.current) return;
+    
+    const map = mapRef.current.getMap();
+    const selected = externalSelectedMunicipality;
+    
+    // Update fill - unselected gets blue, selected gets clear (no fill)
+    if (map.getLayer("municipality-fill")) {
+      map.setPaintProperty("municipality-fill", "fill-opacity", [
+        "case",
+        ["==", ["get", "name"], selected || ""],
+        0, // selected: clear/no fill
+        0.15 // unselected: blue fill
+      ]);
+      
+      map.setPaintProperty("municipality-fill", "fill-color", [
+        "case",
+        ["==", ["get", "name"], selected || ""],
+        "#3b82f6", // selected: blue (just for consistency)
+        "#3b82f6" // unselected: blue
+      ]);
+    }
+    
+    // Update line - selected gets red and thicker
+    if (map.getLayer("municipality-line")) {
+      map.setPaintProperty("municipality-line", "line-width", [
+        "case",
+        ["==", ["get", "name"], selected || ""],
+        4,
+        2
+      ]);
+      
+      map.setPaintProperty("municipality-line", "line-color", [
+        "case",
+        ["==", ["get", "name"], selected || ""],
+        "#dc2626", // selected: red
+        "#1d4ed8" // unselected: blue
+      ]);
+    }
+    
+    // Update line width - selected municipality gets thicker border
+    if (map.getLayer("municipality-line")) {
+      map.setPaintProperty("municipality-line", "line-width", [
+        "case",
+        ["==", ["get", "name"], selected || ""],
+        4,
+        2
+      ]);
+      
+      map.setPaintProperty("municipality-line", "line-color", [
+        "case",
+        ["==", ["get", "name"], selected || ""],
+        "#dc2626",
+        "#1d4ed8"
+      ]);
+    }
+  }, [externalSelectedMunicipality, boundariesLoaded]);
+
   // Handle map click
   const onClickMap = (
     event: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }
   ) => {
     const feature = event.features?.[0];
     if (!feature) return;
+
+    // Check if clicked on municipality boundary
+    if (feature.layer.id === "municipality-fill" || feature.layer.id === "municipality-line") {
+      const municipalityName = feature.properties?.name;
+      if (municipalityName) {
+        // Toggle municipality selection
+        const newSelection = externalSelectedMunicipality === municipalityName ? null : municipalityName;
+        onMunicipalitySelect?.(newSelection);
+        
+        // Fly to municipality
+        const municipality = municipalities.find((m: any) => m.name === municipalityName);
+        if (municipality?.latitude && municipality?.longitude) {
+          mapRef.current?.flyTo({
+            center: [municipality.longitude, municipality.latitude],
+            zoom: 12,
+            duration: 500,
+          });
+        }
+      }
+      return;
+    }
 
     const clusterId = feature.properties?.cluster_id as number | undefined;
 
@@ -280,7 +491,7 @@ export default function ResourceMap({
         mapStyle="https://tiles.openfreemap.org/styles/liberty"
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
-        interactiveLayerIds={["clusters", "unclustered-point"]}
+        interactiveLayerIds={["clusters", "unclustered-point", "municipality-fill", "municipality-line"]}
         onClick={onClickMap}
         onLoad={initializeMap}
       >

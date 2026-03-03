@@ -8,7 +8,7 @@ import { useNotification } from "@/components/Notification";
 import { TourButton } from "@/components/TourProvider";
 import QuickActionsMenu from "@/components/QuickActionsMenu";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllResources, updateResourceStatus } from "@/lib/resources";
+import { getAllResourcesWithDetails, updateResourceStatus } from "@/lib/resources";
 import { isOnline, cacheResources, getCachedResources } from "@/lib/offline";
 import type { Resource } from "@/lib/database.types";
 import {
@@ -29,6 +29,7 @@ import {
   LayoutDashboard,
   Phone,
   WifiOff,
+  Layers,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -445,6 +446,8 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<ResourceType[]>(['ver']);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
+  const [showBoundaries, setShowBoundaries] = useState(true);
 
       // Convert DB status to UI status
       const mapDbStatusToUi = (dbStatus: string | null): ResourceStatus => {
@@ -455,18 +458,18 @@ export default function HomePage() {
       };
 
       // Convert Supabase resource to MarkerData
-      const convertToMarkerData = (resource: Resource): MarkerData => {
+      const convertToMarkerData = (resource: Resource & { municipality?: { name: string } | null; resource_types?: { code: string } | null }): MarkerData => {
         return {
           id: resource.resource_id,
           title: resource.name,
           description: resource.description || "",
-          type: "trucks", // Default, will need type mapping
+          type: (resource.resource_types?.code as ResourceType) || "trucks",
           quantity: resource.quantity || 0,
           latitude: resource.latitude || 0,
           longitude: resource.longitude || 0,
-          municipality: "Iloilo City", // Default, will need municipality lookup
+          municipality: resource.municipality?.name || "Unknown",
           status: mapDbStatusToUi(resource.status),
-          contactNumber: "", // Would need to add to schema or get from user
+          contactNumber: "",
           image: resource.photo_url || undefined,
           createdAt: resource.created_at || undefined,
           user_id: resource.added_by || undefined,
@@ -484,8 +487,8 @@ export default function HomePage() {
 
       try {
         if (online) {
-          // Fetch from Supabase
-          const resources = await getAllResources();
+          // Fetch from Supabase with details
+          const resources = await getAllResourcesWithDetails();
           const markerData = resources.map(convertToMarkerData);
           setMarkers(markerData);
           cacheResources(resources);
@@ -633,6 +636,9 @@ export default function HomePage() {
           selectedMarker={selectedMarker}
           activeFilters={activeFilters}
           searchQuery={searchQuery}
+          selectedMunicipality={selectedMunicipality}
+          onMunicipalitySelect={setSelectedMunicipality}
+          showMunicipalityBoundaries={showBoundaries}
         />
       </div>
 
@@ -682,7 +688,7 @@ export default function HomePage() {
       </header>
 
       {/* Right Control Panel */}
-      <div className="map-control-panel absolute top-25 right-6 z-40 flex flex-col gap-3 md:top-5">
+      <div className="map-control-panel absolute top-25 right-6 z-40 flex flex-col gap-3 md:top-5 items-end">
         {/* Dashboard Button */}
         <Link
           href="/"
@@ -723,6 +729,31 @@ export default function HomePage() {
           className="map-gps-btn w-12 h-12 bg-[#2563eb] rounded-2xl shadow-xl shadow-blue-500/30 flex items-center justify-center hover:bg-[#1d4ed8] transition-all group"
         >
           <LocateFixed size={22} className="text-white group-hover:scale-110 transition-transform" />
+        </button>
+
+        {/* Municipality Filter */}
+        {selectedMunicipality && (
+          <button
+            onClick={() => setSelectedMunicipality(null)}
+            className="map-muni-btn w-auto h-12 px-4 bg-red-500 rounded-2xl shadow-xl shadow-red-500/30 flex items-center justify-center gap-2 hover:bg-red-600 transition-all group"
+          >
+            <MapPin size={18} className="text-white" />
+            <span className="text-white font-medium text-sm">{selectedMunicipality}</span>
+            <X size={16} className="text-white/80 group-hover:text-white" />
+          </button>
+        )}
+
+        {/* Toggle Boundaries */}
+        <button
+          onClick={() => setShowBoundaries(!showBoundaries)}
+          className={`map-boundaries-btn w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center transition-all group ${
+            showBoundaries 
+              ? "bg-blue-500 shadow-blue-500/30 hover:bg-blue-600" 
+              : "bg-white/90 backdrop-blur-xl border border-white/20 hover:bg-white"
+          }`}
+          title={showBoundaries ? "Hide Boundaries" : "Show Boundaries"}
+        >
+          <Layers size={22} className={showBoundaries ? "text-white" : "text-slate-600"} />
         </button>
       </div>
 
