@@ -6,6 +6,8 @@ import Image from "next/image";
 import { MarkerData, ResourceType, ResourceStatus } from "@/types";
 import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
 import Header from "@/components/Header";
+import { getAllResourcesWithDetails } from "@/lib/resources";
+import type { Resource } from "@/lib/database.types";
 import {
   LayoutDashboard,
   Package,
@@ -60,43 +62,23 @@ interface MunicipalityStats {
   percentage: number;
 }
 
-// Mock data generators for demonstration
-const generateMockResources = (): MarkerData[] => {
-  const municipalities = ["Iloilo City", "Oton", "Pavia", "Leganes", "Santa Barbara", "Dumangas"];
-  const types: ResourceType[] = ["ver", "comm", "tools", "trucks", "watercraft", "fr", "har", "usar", "wasar", "ews", "ems", "firetruck", "cssr", "ambulance"];
-  const statuses: ResourceStatus[] = ["ready", "deployed", "maintenance"];
-  
-  // Generate random Philippine mobile number (+63 9XX XXX XXXX)
-  const generatePhilippineNumber = (): string => {
-    const prefixes = ["917", "918", "919", "920", "921", "922", "923", "924", "925", "926", "927", "928", "929", "930", "931", "932", "933", "934", "935", "936", "937", "938", "939", "940", "941", "942", "943", "944", "945", "946", "947", "948", "949", "950", "951", "952", "953", "954", "955", "956", "957", "958", "959", "970", "975", "976", "977", "978", "979", "989", "996", "997", "998", "999"];
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const suffix = Math.floor(Math.random() * 10000000).toString().padStart(7, "0");
-    return `+63${prefix}${suffix}`;
+// Transform Supabase Resource to MarkerData
+const transformResourceToMarkerData = (resource: Resource & { resource_types?: { code: string; full_name: string } | null; municipality?: { name: string } | null }): MarkerData => {
+  return {
+    id: resource.resource_id,
+    title: resource.name,
+    description: resource.description || "",
+    type: (resource.resource_types?.code as ResourceType) || "tools",
+    quantity: resource.quantity || 0,
+    latitude: resource.latitude || 0,
+    longitude: resource.longitude || 0,
+    municipality: resource.municipality?.name || "",
+    status: (resource.status as ResourceStatus) || "ready",
+    contactNumber: "",
+    image: resource.photo_url || undefined,
+    createdAt: resource.created_at || undefined,
+    user_id: resource.added_by || undefined,
   };
-  
-  const resources: MarkerData[] = [];
-  
-  for (let i = 0; i < 45; i++) {
-    const type = types[Math.floor(Math.random() * types.length)];
-    const municipality = municipalities[Math.floor(Math.random() * municipalities.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    
-    resources.push({
-      id: `resource-${i}`,
-      title: `${RESOURCE_CONFIG[type]?.label || type} Unit ${String.fromCharCode(65 + Math.floor(Math.random() * 26))}-${Math.floor(Math.random() * 100)}`,
-      description: `Emergency response unit for ${type} operations`,
-      type,
-      quantity: Math.floor(Math.random() * 8) + 1,
-      latitude: 10.720321 + (Math.random() - 0.5) * 0.1,
-      longitude: 122.562019 + (Math.random() - 0.5) * 0.1,
-      municipality,
-      status,
-      createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-      contactNumber: generatePhilippineNumber(),
-    });
-  }
-  
-  return resources;
 };
 
 // Stat Card Component
@@ -329,21 +311,24 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  // Load data
+  // Load data from Supabase
   useEffect(() => {
-    const loadData = () => {
+    const loadData = async () => {
       try {
-        const savedData = localStorage.getItem("map-resources");
-        if (savedData) {
-          const parsed = JSON.parse(savedData);
-          setMarkers(parsed);
-        } else {
-          // Use mock data if no saved data
-          setMarkers(generateMockResources());
-        }
+        const resources = await getAllResourcesWithDetails();
+        const transformedMarkers = resources.map(transformResourceToMarkerData);
+        setMarkers(transformedMarkers);
       } catch (error) {
         console.error("Error loading data:", error);
-        setMarkers(generateMockResources());
+        // Fallback to localStorage if Supabase fails
+        try {
+          const savedData = localStorage.getItem("map-resources");
+          if (savedData) {
+            setMarkers(JSON.parse(savedData));
+          }
+        } catch (localError) {
+          console.error("Error loading from localStorage:", localError);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -429,19 +414,19 @@ export default function DashboardPage() {
         status: 'ready',
         count: stats.readyCount,
         percentage: stats.readinessPercentage,
-        change: 5, // Mock change - in real app would compare to previous period
+        change: 0,
       },
       {
         status: 'deployed',
         count: stats.deployedCount,
         percentage: stats.deploymentPercentage,
-        change: -2,
+        change: 0,
       },
       {
         status: 'maintenance',
         count: stats.maintenanceCount,
         percentage: stats.maintenancePercentage,
-        change: 1,
+        change: 0,
       },
     ];
   }, [markers, stats]);
@@ -560,8 +545,6 @@ export default function DashboardPage() {
             value={stats.totalResources}
             subtitle={`${stats.totalQuantity} total units`}
             icon={Package}
-            trend="+12% from last month"
-            trendUp={true}
             color="#2563eb"
             delay={0}
           />
@@ -570,8 +553,6 @@ export default function DashboardPage() {
             value={stats.readyCount}
             subtitle={`${stats.readinessPercentage}% readiness rate`}
             icon={CheckCircle2}
-            trend="+5% from last week"
-            trendUp={true}
             color="#22c55e"
             delay={100}
           />
@@ -580,8 +561,6 @@ export default function DashboardPage() {
             value={stats.deployedCount}
             subtitle="Active operations"
             icon={Activity}
-            trend="-2% from yesterday"
-            trendUp={false}
             color="#f97316"
             delay={200}
           />
@@ -590,8 +569,6 @@ export default function DashboardPage() {
             value={stats.maintenanceCount}
             subtitle="Scheduled repairs"
             icon={Clock}
-            trend="+1 from last week"
-            trendUp={false}
             color="#eab308"
             delay={300}
           />

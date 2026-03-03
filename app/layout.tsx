@@ -4,6 +4,7 @@ import "./globals.css";
 import { NotificationProvider } from "@/components/Notification";
 import { TourProvider } from "@/components/TourProvider";
 import InstallPrompt from "@/components/InstallPrompt";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,12 +45,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased text-black`}
       >
+        <AuthProvider>
         <NotificationProvider>
           <TourProvider>
             {children}
             <InstallPrompt />
           </TourProvider>
         </NotificationProvider>
+        </AuthProvider>
       </body>
     </html>
   );

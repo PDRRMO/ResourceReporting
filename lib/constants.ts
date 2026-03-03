@@ -1,7 +1,7 @@
 import { 
   Truck, Wrench, ShieldAlert, Waves, 
   Mountain, Building2, Radio, Activity, Syringe, HardHat,
-  CheckCircle2, Clock, Activity as ActivityIcon
+  CheckCircle2, Clock, Activity as ActivityIcon, FileText
 } from "lucide-react";
 
 export const STATUS_CONFIG = {
@@ -42,6 +42,7 @@ export const RESOURCE_CONFIG = {
   "firetruck": { label: "Fire Truck", icon: ShieldAlert, color: "#2563eb" },
   "cssr": { label: "Collapsed Structure", icon: HardHat, color: "#2563eb" },
   "ambulance": { label: "Ambulance", icon: Activity, color: "#2563eb" },
+  "document": { label: "Document", icon: FileText, color: "#2563eb" },
 } as const;
 
 export type ResourceType = keyof typeof RESOURCE_CONFIG;

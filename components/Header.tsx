@@ -3,9 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LogIn, LogOut, User as UserIcon } from "lucide-react";
 import { TourButton } from "@/components/TourProvider";
 import QuickActionsMenu from "@/components/QuickActionsMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   /** Title displayed in the header */
@@ -37,17 +39,19 @@ interface HeaderProps {
 export default function Header({
   title = "PDRRMO Iloilo",
   subtitle = "Resource Management System",
-  showBackButton = false,
-  backHref = "/",
-  backLabel = "Back to Map",
-  showRefresh = false,
-  onRefresh,
-  isRefreshing = false,
   additionalActions,
   className = "",
   sticky = true,
   tourName,
 }: HeaderProps) {
+  const { user, authUser, loading, signOut } = useAuth()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push("/")
+  }
+
   return (
     <header
       className={`bg-white shadow-sm border-b border-slate-200 z-50 ${
@@ -75,40 +79,55 @@ export default function Header({
 
           {/* Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Refresh Button */}
-            {showRefresh && onRefresh && (
-              <button
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <RefreshCw
-                  size={18}
-                  className={isRefreshing ? "animate-spin" : ""}
-                />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-            )}
-
             {/* Quick Actions Burger Menu */}
             <QuickActionsMenu />
+
+            {/* Auth Buttons */}
+            {!loading && (
+              <>
+                {user ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg">
+                      <UserIcon size={16} className="text-slate-600" />
+                      <span className="text-sm font-medium text-slate-700 hidden sm:inline">
+                        {authUser?.email?.split('@')[0]}
+                      </span>
+                      {authUser?.role && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          authUser.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                          authUser.role === 'responder' ? 'bg-green-100 text-green-700' :
+                          'bg-slate-200 text-slate-600'
+                        }`}>
+                          {authUser.role}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Sign out"
+                    >
+                      <LogOut size={18} />
+                      <span className="hidden sm:inline">Sign Out</span>
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/signin"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    <LogIn size={18} />
+                    <span className="hidden sm:inline">Sign In</span>
+                  </Link>
+                )}
+              </>
+            )}
 
             {/* Additional Custom Actions */}
             {additionalActions}
 
             {/* Tour Button */}
             {tourName && <TourButton tourName={tourName} />}
-
-            {/* Back Button */}
-            {showBackButton && (
-              <Link
-                href={backHref}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors bg-slate-100 hover:bg-blue-50 rounded-lg"
-              >
-                <ArrowLeft size={18} />
-                <span className="hidden sm:inline">{backLabel}</span>
-              </Link>
-            )}
           </div>
         </div>
       </div>
@@ -125,28 +144,14 @@ export function MapPageHeader({
 }) {
   return (
     <Header
-      showBackButton={false}
-      showRefresh={false}
       additionalActions={additionalActions}
     />
   );
 }
 
-export function DashboardPageHeader({
-  onRefresh,
-  isRefreshing = false,
-}: {
-  onRefresh?: () => void;
-  isRefreshing?: boolean;
-}) {
+export function DashboardPageHeader() {
   return (
     <Header
-      showBackButton={true}
-      backHref="/map"
-      backLabel="Go to Map"
-      showRefresh={true}
-      onRefresh={onRefresh}
-      isRefreshing={isRefreshing}
       tourName="dashboard"
     />
   );
@@ -155,10 +160,6 @@ export function DashboardPageHeader({
 export function UploadPageHeader() {
   return (
     <Header
-      showBackButton={true}
-      backHref="/"
-      backLabel="Back to Dashboard"
-      showRefresh={false}
       tourName="upload"
     />
   );
@@ -167,18 +168,14 @@ export function UploadPageHeader() {
 export function SimplePageHeader({
   title,
   subtitle,
-  showBackButton = true,
 }: {
   title: string;
   subtitle?: string;
-  showBackButton?: boolean;
 }) {
   return (
     <Header
       title={title}
       subtitle={subtitle}
-      showBackButton={showBackButton}
-      showRefresh={false}
     />
   );
 }

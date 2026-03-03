@@ -10,13 +10,16 @@ import {
   FileText,
   ChevronRight,
   X,
+  Settings,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface QuickActionItem {
   icon: React.ElementType;
   label: string;
   href: string;
   color: string;
+  adminOnly?: boolean;
 }
 
 const quickActions: QuickActionItem[] = [
@@ -44,11 +47,27 @@ const quickActions: QuickActionItem[] = [
     href: "#",
     color: "#f59e0b",
   },
+  {
+    icon: Settings,
+    label: "Admin: Upload GeoJSON",
+    href: "/admin/geojson",
+    color: "#dc2626",
+    adminOnly: true,
+  },
+  {
+    icon: Settings,
+    label: "Admin: Update Resource Types",
+    href: "/admin/resources/types",
+    color: "#dc2626",
+    adminOnly: true,
+  }
 ];
 
 export default function QuickActionsMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { authUser } = useAuth();
+  const isAdmin = authUser?.role === "admin";
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -84,14 +103,16 @@ export default function QuickActionsMenu() {
             <h3 className="text-sm font-semibold text-slate-700">Quick Actions</h3>
           </div>
           <div className="p-2 space-y-1">
-            {quickActions.map((action, index) => (
-              <QuickActionLink
-                key={action.label}
-                {...action}
-                onClick={() => setIsOpen(false)}
-                delay={index * 50}
-              />
-            ))}
+            {quickActions
+              .filter((action) => !action.adminOnly || isAdmin)
+              .map((action, index) => (
+                <QuickActionLink
+                  key={action.label}
+                  {...action}
+                  onClick={() => setIsOpen(false)}
+                  delay={index * 50}
+                />
+              ))}
           </div>
         </div>
       )}

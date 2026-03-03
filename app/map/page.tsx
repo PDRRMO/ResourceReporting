@@ -7,6 +7,10 @@ import { RESOURCE_CONFIG } from "@/lib/constants";
 import { useNotification } from "@/components/Notification";
 import { TourButton } from "@/components/TourProvider";
 import QuickActionsMenu from "@/components/QuickActionsMenu";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAllResources, updateResourceStatus } from "@/lib/resources";
+import { isOnline, cacheResources, getCachedResources } from "@/lib/offline";
+import type { Resource } from "@/lib/database.types";
 import {
   Search,
   User,
@@ -23,7 +27,8 @@ import {
   ToolCase,
   Upload,
   LayoutDashboard,
-  Phone
+  Phone,
+  WifiOff,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -72,30 +77,31 @@ const generatePhilippineNumber = (): string => {
   return `+63${prefix}${suffix}`;
 };
 
-const generateRandomMockResource = (): Omit<MarkerData, "id" | "createdAt"> => {
-  const type = RESOURCE_TYPES[Math.floor(Math.random() * RESOURCE_TYPES.length)];
-  const municipality = MUNICIPALITIES[Math.floor(Math.random() * MUNICIPALITIES.length)];
-  const names = RESOURCE_NAMES[type];
-  const title = names[Math.floor(Math.random() * names.length)] + " " + Math.floor(Math.random() * 100);
-  const status = STATUSES[Math.floor(Math.random() * STATUSES.length)];
-  
-  const baseLat = 10.720321;
-  const baseLng = 122.562019;
-  const latOffset = (Math.random() - 0.5) * 0.1;
-  const lngOffset = (Math.random() - 0.5) * 0.1;
-  
-  return {
-    title,
-    description: `Emergency response unit for ${type} operations`,
-    type,
-    quantity: Math.floor(Math.random() * 10) + 1,
-    latitude: baseLat + latOffset,
-    longitude: baseLng + lngOffset,
-    municipality,
-    status,
-    contactNumber: generatePhilippineNumber(),
-  };
-};
+// Mock data generation functions - kept for reference/testing
+// const generateRandomMockResource = (): Omit<MarkerData, "id" | "createdAt"> => {
+//   const type = RESOURCE_TYPES[Math.floor(Math.random() * RESOURCE_TYPES.length)];
+//   const municipality = MUNICIPALITIES[Math.floor(Math.random() * MUNICIPALITIES.length)];
+//   const names = RESOURCE_NAMES[type];
+//   const title = names[Math.floor(Math.random() * names.length)] + " " + Math.floor(Math.random() * 100);
+//   const status = STATUSES[Math.floor(Math.random() * STATUSES.length)];
+//   
+//   const baseLat = 10.720321;
+//   const baseLng = 122.562019;
+//   const latOffset = (Math.random() - 0.5) * 0.1;
+//   const lngOffset = (Math.random() - 0.5) * 0.1;
+//   
+//   return {
+//     title,
+//     description: `Emergency response unit for ${type} operations`,
+//     type,
+//     quantity: Math.floor(Math.random() * 10) + 1,
+//     latitude: baseLat + latOffset,
+//     longitude: baseLng + lngOffset,
+//     municipality,
+//     status,
+//     contactNumber: generatePhilippineNumber(),
+//   };
+// };
 
 // Status Update Modal Component
 const StatusUpdateModal = ({
@@ -428,8 +434,11 @@ const FilterModal = ({
 
 export default function HomePage() {
   const { showError, showSuccess, showInfo } = useNotification();
+  const { user, role } = useAuth();
   const [markers, setMarkers] = useState<MarkerData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [isStale, setIsStale] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -437,21 +446,70 @@ export default function HomePage() {
   const [activeFilters, setActiveFilters] = useState<ResourceType[]>(['ver']);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
+      // Convert DB status to UI status
+      const mapDbStatusToUi = (dbStatus: string | null): ResourceStatus => {
+        if (dbStatus === "ready" || dbStatus === "deployed" || dbStatus === "maintenance") {
+          return dbStatus;
+        }
+        return "ready"; // default
+      };
+
+      // Convert Supabase resource to MarkerData
+      const convertToMarkerData = (resource: Resource): MarkerData => {
+        return {
+          id: resource.resource_id,
+          title: resource.name,
+          description: resource.description || "",
+          type: "trucks", // Default, will need type mapping
+          quantity: resource.quantity || 0,
+          latitude: resource.latitude || 0,
+          longitude: resource.longitude || 0,
+          municipality: "Iloilo City", // Default, will need municipality lookup
+          status: mapDbStatusToUi(resource.status),
+          contactNumber: "", // Would need to add to schema or get from user
+          image: resource.photo_url || undefined,
+          createdAt: resource.created_at || undefined,
+          user_id: resource.added_by || undefined,
+        };
+      };
+
+  // Load resources from Supabase with offline fallback
   useEffect(() => {
-    const loadResources = () => {
+    const loadResources = async () => {
+      setIsLoading(true);
+      
+      // Check online status
+      const online = isOnline();
+      setIsOffline(!online);
+
       try {
-        const savedData = localStorage.getItem("map-resources");
-        const parsedData = savedData ? JSON.parse(savedData) : [];
-        const validatedData = parsedData.map((item: MarkerData) => ({
-          ...item,
-          municipality: item.municipality || "Iloilo City",
-          status: item.status || "ready",
-          contactNumber: item.contactNumber || generatePhilippineNumber(),
-        }));
-        setMarkers(validatedData);
+        if (online) {
+          // Fetch from Supabase
+          const resources = await getAllResources();
+          const markerData = resources.map(convertToMarkerData);
+          setMarkers(markerData);
+          cacheResources(resources);
+          setIsStale(false);
+        } else {
+          // Try to get from cache
+          const cached = getCachedResources();
+          if (cached) {
+            const markerData = cached.map(convertToMarkerData);
+            setMarkers(markerData);
+            setIsStale(true);
+          } else {
+            setMarkers([]);
+          }
+        }
       } catch (error) {
         console.error("Error loading resources:", error);
-        setMarkers([]);
+        // Try cache on error
+        const cached = getCachedResources();
+        if (cached) {
+          const markerData = cached.map(convertToMarkerData);
+          setMarkers(markerData);
+          setIsStale(true);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -459,14 +517,20 @@ export default function HomePage() {
 
     loadResources();
 
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "map-resources") {
-        loadResources();
-      }
+    // Listen for online/offline events
+    const handleOnline = () => {
+      setIsOffline(false);
+      loadResources(); // Reload when back online
     };
+    const handleOffline = () => setIsOffline(true);
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const handleMarkerSelect = useCallback((marker: MarkerData | null) => {
@@ -475,23 +539,14 @@ export default function HomePage() {
 
   }, []);
 
-  const addMockData = () => {
-    const existingData = JSON.parse(localStorage.getItem("map-resources") || "[]");
-    const numResources = Math.floor(Math.random() * 5) + 3;
-    
-    const newMockData: MarkerData[] = Array.from({ length: numResources }, () => {
-      const resource = generateRandomMockResource();
-      return {
-        ...resource,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString()
-      };
-    });
-    
-    const updatedData = [...existingData, ...newMockData];
-    localStorage.setItem("map-resources", JSON.stringify(updatedData));
-    setMarkers(updatedData);
-  };
+  // const addMockData = async () => {
+  //   if (!user || !role || (role !== "responder" && role !== "admin")) {
+  //     showError("Access Denied", "Only responders and admins can add resources.");
+  //     return;
+  //   }
+
+  //   showInfo("Demo Mode", "Please use the upload page to add real resources.");
+  // };
 
   const centerToLocation = () => {
     if (navigator.geolocation) {
@@ -514,32 +569,46 @@ export default function HomePage() {
     }
   };
 
-  const handleStatusUpdate = (newStatus: ResourceStatus) => {
+  const handleStatusUpdate = async (newStatus: ResourceStatus) => {
     if (!selectedMarker) return;
 
-    // Update the marker status
-    const updatedMarker = { 
-      ...selectedMarker, 
-      status: newStatus,
+    // Check if user can update
+    if (!user || !role || (role !== "responder" && role !== "admin")) {
+      showError("Access Denied", "Only responders and admins can update status.");
+      setIsStatusModalOpen(false);
+      return;
+    }
+
+    // Map local status to DB status (direct mapping now)
+    const statusMap: Record<ResourceStatus, string> = {
+      ready: "ready",
+      deployed: "deployed",
+      maintenance: "maintenance",
     };
 
-    // Update markers state
-    const updatedMarkers = markers.map((m) =>
-      m.id === selectedMarker.id ? updatedMarker : m
-    );
-    setMarkers(updatedMarkers);
+    try {
+      // Update in Supabase
+      await updateResourceStatus(selectedMarker.id, statusMap[newStatus]);
 
-    // Update localStorage
-    localStorage.setItem("map-resources", JSON.stringify(updatedMarkers));
+      // Update local state
+      const updatedMarker = { 
+        ...selectedMarker, 
+        status: newStatus,
+      };
 
-    // Update selected marker
-    setSelectedMarker(updatedMarker);
+      const updatedMarkers = markers.map((m) =>
+        m.id === selectedMarker.id ? updatedMarker : m
+      );
+      setMarkers(updatedMarkers);
+      setSelectedMarker(updatedMarker);
 
-    // Close the modal
-    setIsStatusModalOpen(false);
-
-    // Show success feedback
-    showSuccess("Status Updated", `Resource status changed to ${STATUS_CONFIG[newStatus].label}`);
+      showSuccess("Status Updated", `Resource status changed to ${STATUS_CONFIG[newStatus].label}`);
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      showError("Update Failed", error.message || "Could not update status.");
+    } finally {
+      setIsStatusModalOpen(false);
+    }
   };
 
   if (isLoading) {
@@ -571,6 +640,14 @@ export default function HomePage() {
       <header 
         className="map-header absolute top-6 z-40 flex items-center gap-2 w-[95vw] mx-2 md:ml-5"
       >
+        {/* Offline Indicator */}
+        {(isOffline || isStale) && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-xl text-sm font-medium shadow-lg">
+            <WifiOff size={16} />
+            {isOffline ? "Offline Mode" : "Showing cached data"}
+          </div>
+        )}
+
         {/* Logo */}
         <div className="w-20 h-20 md:w-30 md:h-30 bg-[#1e293b] rounded-full flex items-center justify-center shadow-xl">
           <Image src='/logo.png' width={200} height={200}  alt="Logo"/>
@@ -623,20 +700,6 @@ export default function HomePage() {
         >
           <Upload size={22} className="text-white group-hover:scale-110 transition-transform" />
         </Link>
-
-        {/* Add Mock Data Button */}
-        <button
-          onClick={addMockData}
-          className="w-12 h-12 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 flex items-center justify-center hover:bg-white transition-all group"
-          title="Add Mock Data"
-        >
-          <PlusCircle size={22} className="text-[#2563eb] group-hover:scale-110 transition-transform" />
-        </button>
-
-        {/* User Profile */}
-        <button className="w-12 h-12 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 flex items-center justify-center hover:bg-white transition-all group">
-          <User size={22} className="text-[#1e293b] group-hover:scale-110 transition-transform" />
-        </button>
 
         {/* Tour Button */}
         <div className="flex items-center justify-center">

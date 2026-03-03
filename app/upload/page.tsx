@@ -1,16 +1,14 @@
 "use client";
-import React, { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import { useNotification } from "@/components/Notification";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Save,
   MapPin,
   Loader2,
-  CheckCircle2,
   Activity,
-  Clock,
   Package,
   MapPinned,
   FileText,
@@ -23,16 +21,27 @@ import {
   X,
   AlertCircle,
   ToolCase,
-  ArrowLeft,
   Phone,
+  WifiOff,
 } from "lucide-react";
-import type { MarkerData } from "@/types";
-import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
 import type { ResourceType, ResourceStatus } from "@/types";
+import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
+import { getAllMunicipalities, getMunicipalityByName } from "@/lib/municipalities";
+import { createResource, getAllResources } from "@/lib/resources";
+import { getResourceTypeByCode } from "@/lib/resourceTypes";
+import { uploadBase64ToCloudinary } from "@/lib/storage";
+import { isOnline, queueOfflineAction } from "@/lib/offline";
+import type { Municipality } from "@/lib/database.types";
 
 export default function UploadResourcePage() {
+  const router = useRouter();
   const { showError, showSuccess } = useNotification();
+  const { user, authUser, role } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState<{
     title: string;
     type: ResourceType;
@@ -51,21 +60,33 @@ export default function UploadResourcePage() {
     latitude: 10.720321,
     longitude: 122.562019,
     description: "",
-    municipality: "Iloilo City",
+    municipality: "City of Iloilo",
     status: "ready",
     image: undefined,
     contactNumber: "",
   });
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const municipalities = [
-    "Iloilo City",
-    "Oton",
-    "Pavia",
-    "Leganes",
-    "Santa Barbara",
-    "Dumangas",
-  ];
+  useEffect(() => {
+    // Check online status
+    setIsOffline(!isOnline());
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Load municipalities from Supabase
+    getAllMunicipalities()
+      .then(setMunicipalities)
+      .catch(console.error);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Check if user can upload
+  const canUpload = user && authUser && (role === "responder" || role === "admin");
 
   const getLocation = () => {
     if (!navigator.geolocation) {
@@ -96,7 +117,20 @@ export default function UploadResourcePage() {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Check if user is logged in
+    if (!user || !authUser) {
+      showError("Authentication Required", "Please sign in to add resources.");
+      router.push("/login");
+      return;
+    }
+
+    // Check if user has permission
+    if (!canUpload) {
+      showError("Access Denied", "Only responders and admins can add resources.");
+      return;
+    }
+
     if (!formData.title || !formData.latitude || !formData.longitude || !formData.contactNumber) {
       showError("Validation Error", "Please fill in all required fields including the contact number.");
       return;
@@ -109,36 +143,96 @@ export default function UploadResourcePage() {
       return;
     }
 
-    const newResource: MarkerData = {
-      ...formData,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      user_id: "temp-user-id",
-    };
+    setLoading(true);
 
-    const existingData = JSON.parse(
-      localStorage.getItem("map-resources") || "[]",
-    );
-    localStorage.setItem(
-      "map-resources",
-      JSON.stringify([...existingData, newResource]),
-    );
+    try {
+      // Map local status directly to DB status (they are the same now)
+      const statusMap: Record<ResourceStatus, string> = {
+        ready: "ready",
+        deployed: "deployed",
+        maintenance: "maintenance",
+      };
 
-    showSuccess("Resource Saved", "Your resource has been added successfully!");
-    
-    // Reset form
-    setFormData({
-      title: "",
-      type: "trucks",
-      quantity: 1,
-      latitude: 10.720321,
-      longitude: 122.562019,
-      description: "",
-      municipality: "Iloilo City",
-      status: "ready",
-      image: undefined,
-      contactNumber: "",
-    });
+      // Upload image to Cloudinary if exists
+      let photoUrl: string | null = null;
+      if (formData.image) {
+        try {
+          photoUrl = await uploadBase64ToCloudinary(formData.image);
+        } catch (uploadError) {
+          console.error("Image upload failed:", uploadError);
+          showError("Upload Warning", "Resource saved but image upload failed. You can add an image later.");
+        }
+      }
+
+      // Get municipality_id from name
+      let municipalityId: string | null = null;
+      try {
+        const municipality = await getMunicipalityByName(formData.municipality);
+        municipalityId = municipality?.municipality_id || null;
+      } catch (muniError) {
+        console.error("Municipality lookup failed:", muniError);
+      }
+
+      // Get type_id from code
+      let typeId: string | null = null;
+      try {
+        const resourceType = await getResourceTypeByCode(formData.type);
+        typeId = resourceType?.id || null;
+      } catch (typeError) {
+        console.error("Resource type lookup failed:", typeError);
+      }
+
+      // Prepare resource data
+      const resourceData = {
+        name: formData.title,
+        type_id: typeId,
+        municipality_id: municipalityId,
+        quantity: formData.quantity,
+        status: statusMap[formData.status],
+        photo_url: photoUrl,
+        description: formData.description,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+      };
+
+      // Check if online
+      if (isOnline()) {
+        // Save to Supabase
+        await createResource(resourceData, user.id);
+        showSuccess("Resource Saved", "Your resource has been added successfully!");
+      } else {
+        // Queue for later sync
+        queueOfflineAction({
+          type: "create",
+          table: "resource",
+          data: { ...resourceData, added_by: user.id },
+        });
+        showSuccess("Saved Offline", "Your resource has been queued and will be synced when you're back online.");
+      }
+
+      // Reset form
+      setFormData({
+        title: "",
+        type: "trucks",
+        quantity: 1,
+        latitude: 10.720321,
+        longitude: 122.562019,
+        description: "",
+        municipality: "Ajuy",
+        status: "ready",
+        image: undefined,
+        contactNumber: "",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Error saving resource:", error);
+      showError("Save Failed", err.message || "Could not save resource. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const currentResourceConfig = RESOURCE_CONFIG[formData.type];
@@ -157,6 +251,27 @@ export default function UploadResourcePage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Offline Warning */}
+        {isOffline && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+            <WifiOff className="text-amber-600" size={20} />
+            <span className="text-amber-800 text-sm font-medium">
+              You&apos;re offline. Resources will be saved locally and synced when you&apos;re back online.
+            </span>
+          </div>
+        )}
+
+        {/* Access Warning */}
+        {(!user || !canUpload) && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+            <AlertCircle className="text-red-600" size={20} />
+            <span className="text-red-800 text-sm font-medium">
+              {!user 
+                ? "Please sign in to add resources." 
+                : "Only responders and admins can add resources. Your role: " + (role || "viewer")}
+            </span>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Form */}
           <div className="space-y-6">
@@ -337,11 +452,22 @@ export default function UploadResourcePage() {
                         })
                       }
                     >
-                      {municipalities.map((municipality) => (
-                        <option key={municipality} value={municipality}>
-                          {municipality}
-                        </option>
-                      ))}
+                      {municipalities.length > 0 ? (
+                        municipalities.map((municipality) => (
+                          <option key={municipality.municipality_id} value={municipality.name}>
+                            {municipality.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Iloilo City">Iloilo City</option>
+                          <option value="Oton">Oton</option>
+                          <option value="Pavia">Pavia</option>
+                          <option value="Leganes">Leganes</option>
+                          <option value="Santa Barbara">Santa Barbara</option>
+                          <option value="Dumangas">Dumangas</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -457,10 +583,34 @@ export default function UploadResourcePage() {
                 {/* Submit Button */}
                 <button
                   onClick={handleSave}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 py-4 text-sm font-bold text-white shadow-lg shadow-blue-500/30 transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-xl hover:shadow-blue-500/40 active:scale-[0.98]"
+                  disabled={loading || !canUpload}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/40 active:scale-[0.98] ${
+                    loading || !canUpload
+                      ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800"
+                  }`}
                 >
-                  <Save size={20} />
-                  Register Resource
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      Saving...
+                    </>
+                  ) : !user ? (
+                    <>
+                      <AlertCircle size={20} />
+                      Sign In to Add Resource
+                    </>
+                  ) : !canUpload ? (
+                    <>
+                      <AlertCircle size={20} />
+                      Access Denied
+                    </>
+                  ) : (
+                    <>
+                      <Save size={20} />
+                      Register Resource
+                    </>
+                  )}
                 </button>
               </div>
             </div>
