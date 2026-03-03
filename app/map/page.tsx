@@ -448,6 +448,7 @@ export default function HomePage() {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
   const [showBoundaries, setShowBoundaries] = useState(true);
+  const [municipalityCount, setMunicipalityCount] = useState(0);
 
       // Convert DB status to UI status
       const mapDbStatusToUi = (dbStatus: string | null): ResourceStatus => {
@@ -631,7 +632,6 @@ export default function HomePage() {
       <div className="map-container absolute inset-0">
         <ResourceMap 
           markers={markers} 
-          activeZones={6}
           onMarkerSelect={handleMarkerSelect}
           selectedMarker={selectedMarker}
           activeFilters={activeFilters}
@@ -639,6 +639,7 @@ export default function HomePage() {
           selectedMunicipality={selectedMunicipality}
           onMunicipalitySelect={setSelectedMunicipality}
           showMunicipalityBoundaries={showBoundaries}
+          onMunicipalityCountChange={setMunicipalityCount}
         />
       </div>
 
@@ -809,7 +810,7 @@ export default function HomePage() {
             <div className="w-px h-10 bg-slate-200" />
             <div>
               <p className="text-xs font-bold text-[#64748b] uppercase tracking-wider">Active Zones</p>
-              <p className="text-2xl font-black text-[#2563eb]">6</p>
+              <p className="text-2xl font-black text-[#2563eb]">{municipalityCount}</p>
             </div>
             <div className="w-px h-10 bg-slate-200" />
             <div>

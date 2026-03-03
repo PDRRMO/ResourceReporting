@@ -16,7 +16,6 @@ import { getAllMunicipalities } from "@/lib/municipalities";
 interface ResourceMapProps {
   markers: MarkerData[];
   initialViewState?: MapViewState;
-  activeZones?: number;
   onMarkerSelect?: (marker: MarkerData | null) => void;
   selectedMarker?: MarkerData | null;
   activeFilters?: ResourceType[];
@@ -24,6 +23,7 @@ interface ResourceMapProps {
   selectedMunicipality?: string | null;
   onMunicipalitySelect?: (municipality: string | null) => void;
   showMunicipalityBoundaries?: boolean;
+  onMunicipalityCountChange?: (count: number) => void;
 }
 
 const DEFAULT_VIEW_STATE: MapViewState = {
@@ -42,7 +42,6 @@ const ALL_RESOURCE_TYPES: ResourceType[] = [
 export default function ResourceMap({
   markers,
   initialViewState = DEFAULT_VIEW_STATE,
-  activeZones = 6,
   onMarkerSelect,
   selectedMarker: externalSelectedMarker,
   activeFilters: externalFilters,
@@ -50,6 +49,7 @@ export default function ResourceMap({
   selectedMunicipality: externalSelectedMunicipality,
   onMunicipalitySelect,
   showMunicipalityBoundaries = true,
+  onMunicipalityCountChange,
 }: ResourceMapProps) {
   const mapRef = useRef<MapRef>(null);
   const [internalFilters, setInternalFilters] = useState<ResourceType[]>(ALL_RESOURCE_TYPES);
@@ -70,6 +70,11 @@ export default function ResourceMap({
       try {
         const data = await getAllMunicipalities();
         setMunicipalities(data);
+        
+        // Pass count to parent
+        if (onMunicipalityCountChange) {
+          onMunicipalityCountChange(data.length);
+        }
         
         // Build GeoJSON from boundary shapes
         const geojson: any = {
@@ -374,20 +379,13 @@ export default function ResourceMap({
     const map = mapRef.current.getMap();
     const selected = externalSelectedMunicipality;
     
-    // Update fill - unselected gets blue, selected gets clear (no fill)
+    // Update fill - selected stays clear, unselected get blue fill
     if (map.getLayer("municipality-fill")) {
       map.setPaintProperty("municipality-fill", "fill-opacity", [
         "case",
         ["==", ["get", "name"], selected || ""],
-        0, // selected: clear/no fill
-        0.15 // unselected: blue fill
-      ]);
-      
-      map.setPaintProperty("municipality-fill", "fill-color", [
-        "case",
-        ["==", ["get", "name"], selected || ""],
-        "#3b82f6", // selected: blue (just for consistency)
-        "#3b82f6" // unselected: blue
+        0, // selected: clear
+        selected ? 0.15 : 0 // unselected: blue fill when something is selected, otherwise clear
       ]);
     }
     
