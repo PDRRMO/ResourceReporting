@@ -428,12 +428,60 @@ export default function ResourceMap({
   const onClickMap = (
     event: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }
   ) => {
-    const feature = event.features?.[0];
-    if (!feature) return;
+    if (!mapRef.current) return;
+    
+    const map = mapRef.current.getMap();
+    const point = [event.point.x, event.point.y] as [number, number];
+    
+    // Query for markers/clusters FIRST (they should be on top)
+    const markerFeatures = map.queryRenderedFeatures(point, {
+      layers: ["clusters", "unclustered-point"]
+    });
+    
+    const markerFeature = markerFeatures[0];
+    
+    // Check if clicked on a marker/cluster
+    if (markerFeature) {
+      const clusterId = markerFeature.properties?.cluster_id as number | undefined;
 
-    // Check if clicked on municipality boundary
-    if (feature.layer.id === "municipality-fill" || feature.layer.id === "municipality-line") {
-      const municipalityName = feature.properties?.name;
+      if (clusterId) {
+        const source = map.getSource("resources") as maplibregl.GeoJSONSource;
+        source
+          .getClusterExpansionZoom(clusterId)
+          .then((zoom: number) => {
+            mapRef.current?.flyTo({
+              center: (markerFeature.geometry as GeoJSON.Point).coordinates as [number, number],
+              zoom: zoom + 1,
+              duration: 500,
+            });
+          })
+          .catch((err: Error) => console.error("Error expanding cluster:", err));
+        return;
+      }
+      
+      // Check if clicked on a marker (unclustered point)
+      if (markerFeature.layer.id === "unclustered-point") {
+        const markerData = markerFeature.properties as MarkerData;
+        setSelectedMarker(markerData);
+        
+        // Center map on the selected marker
+        mapRef.current?.flyTo({
+          center: [markerData.longitude, markerData.latitude],
+          zoom: Math.max(mapRef.current.getZoom(), 13),
+          duration: 500,
+          essential: true
+        });
+        return;
+      }
+    }
+
+    // If not clicked on a marker/cluster, check if clicked inside a municipality (fill layer)
+    const municipalityFeatures = map.queryRenderedFeatures(point, {
+      layers: ["municipality-fill"]
+    });
+    
+    if (municipalityFeatures.length > 0) {
+      const municipalityName = municipalityFeatures[0].properties?.name;
       if (municipalityName) {
         // Toggle municipality selection
         const newSelection = externalSelectedMunicipality === municipalityName ? null : municipalityName;
@@ -442,7 +490,7 @@ export default function ResourceMap({
         // Fly to municipality
         const municipality = municipalities.find((m: any) => m.name === municipalityName);
         if (municipality?.latitude && municipality?.longitude) {
-          mapRef.current?.flyTo({
+          mapRef.current.flyTo({
             center: [municipality.longitude, municipality.latitude],
             zoom: 12,
             duration: 500,
@@ -451,32 +499,10 @@ export default function ResourceMap({
       }
       return;
     }
-
-    const clusterId = feature.properties?.cluster_id as number | undefined;
-
-    if (clusterId) {
-      const source = mapRef.current?.getSource("resources") as maplibregl.GeoJSONSource;
-      source
-        .getClusterExpansionZoom(clusterId)
-        .then((zoom: number) => {
-          mapRef.current?.flyTo({
-            center: (feature.geometry as GeoJSON.Point).coordinates as [number, number],
-            zoom: zoom + 1,
-            duration: 500,
-          });
-        })
-        .catch((err: Error) => console.error("Error expanding cluster:", err));
-    } else {
-      const markerData = feature.properties as MarkerData;
-      setSelectedMarker(markerData);
-      
-      // Center map on the selected marker
-      mapRef.current?.flyTo({
-        center: [markerData.longitude, markerData.latitude],
-        zoom: Math.max(mapRef.current.getZoom(), 13),
-        duration: 500,
-        essential: true
-      });
+    
+    // Clicked on empty area - deselect municipality
+    if (externalSelectedMunicipality) {
+      onMunicipalitySelect?.(null);
     }
   };
 
@@ -489,7 +515,7 @@ export default function ResourceMap({
         mapStyle="https://tiles.openfreemap.org/styles/liberty"
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
-        interactiveLayerIds={["clusters", "unclustered-point", "municipality-fill", "municipality-line"]}
+        interactiveLayerIds={["clusters", "unclustered-point", "municipality-line"]}
         onClick={onClickMap}
         onLoad={initializeMap}
       >

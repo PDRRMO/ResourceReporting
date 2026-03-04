@@ -7,6 +7,7 @@ import { MarkerData, ResourceType, ResourceStatus } from "@/types";
 import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
 import Header from "@/components/Header";
 import { getAllResourcesWithDetails } from "@/lib/resources";
+import { getCachedResources } from "@/lib/offline";
 import type { Resource } from "@/lib/database.types";
 import {
   LayoutDashboard,
@@ -320,14 +321,14 @@ export default function DashboardPage() {
         setMarkers(transformedMarkers);
       } catch (error) {
         console.error("Error loading data:", error);
-        // Fallback to localStorage if Supabase fails
+        // Fallback to IndexedDB cache if Supabase fails
         try {
-          const savedData = localStorage.getItem("map-resources");
-          if (savedData) {
-            setMarkers(JSON.parse(savedData));
+          const cached = await getCachedResources();
+          if (cached) {
+            setMarkers(cached.map(transformResourceToMarkerData));
           }
-        } catch (localError) {
-          console.error("Error loading from localStorage:", localError);
+        } catch (cacheError) {
+          console.error("Error loading from cache:", cacheError);
         }
       } finally {
         setIsLoading(false);
@@ -340,10 +341,10 @@ export default function DashboardPage() {
   // Refresh data
   const handleRefresh = () => {
     setIsLoading(true);
-    setTimeout(() => {
-      const savedData = localStorage.getItem("map-resources");
-      if (savedData) {
-        setMarkers(JSON.parse(savedData));
+    setTimeout(async () => {
+      const cached = await getCachedResources();
+      if (cached) {
+        setMarkers(cached.map(transformResourceToMarkerData));
       }
       setLastRefresh(new Date());
       setIsLoading(false);

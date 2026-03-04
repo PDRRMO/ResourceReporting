@@ -79,6 +79,9 @@ export default function Header({
 
           {/* Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            
+            {/* Tour Button */}
+            {tourName && <TourButton tourName={tourName} />}
             {/* Quick Actions Burger Menu */}
             <QuickActionsMenu />
 
@@ -126,8 +129,6 @@ export default function Header({
             {/* Additional Custom Actions */}
             {additionalActions}
 
-            {/* Tour Button */}
-            {tourName && <TourButton tourName={tourName} />}
           </div>
         </div>
       </div>

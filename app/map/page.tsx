@@ -8,7 +8,7 @@ import { useNotification } from "@/components/Notification";
 import { TourButton } from "@/components/TourProvider";
 import QuickActionsMenu from "@/components/QuickActionsMenu";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllResourcesWithDetails, updateResourceStatus } from "@/lib/resources";
+import { getAllResources, getAllResourcesWithDetails, updateResourceStatus } from "@/lib/resources";
 import { isOnline, cacheResources, getCachedResources } from "@/lib/offline";
 import type { Resource } from "@/lib/database.types";
 import {
@@ -40,27 +40,27 @@ const RESOURCE_TYPES: ResourceType[] = [
   "firetruck", "cssr", "ambulance"
 ];
 
-const MUNICIPALITIES = [
-  "Iloilo City", "Oton", "Pavia", "Leganes", 
-  "Santa Barbara", "Dumangas"
-];
+// const MUNICIPALITIES = [
+//   "Iloilo City", "Oton", "Pavia", "Leganes", 
+//   "Santa Barbara", "Dumangas"
+// ];
 
-const RESOURCE_NAMES: Record<ResourceType, string[]> = {
-  ver: ["Vehicle Extrication Unit", "Crash Response Vehicle", "Auto Rescue Truck"],
-  comm: ["Mobile Command Center", "Radio Communications Van", "Emergency Dispatch Unit"],
-  tools: ["Equipment Transport", "Tool & Gear Vehicle", "Rescue Equipment Truck"],
-  trucks: ["Utility Truck", "Transport Vehicle", "General Service Truck"],
-  watercraft: ["Rescue Boat", "Marine Patrol Vessel", "Water Transport Unit"],
-  fr: ["Fire Engine Alpha", "Fire Suppression Unit", "Emergency Fire Truck"],
-  har: ["High Altitude Rescue Team", "Tower Rescue Unit", "Cliff Rescue Squad"],
-  usar: ["Urban Search Team", "Disaster Response Unit", "Collapse Rescue Squad"],
-  wasar: ["Water Rescue Team", "Marine Rescue Unit", "Coastal Response Team"],
-  ews: ["Early Warning Vehicle", "Alert System Unit", "Monitoring Station"],
-  ems: ["Emergency Medical Team", "Field Medics Unit", "Medical Response Squad"],
-  firetruck: ["Fire Engine", "Fire Apparatus", "Firefighting Truck"],
-  cssr: ["Structure Collapse Team", "Building Rescue Unit", "Rubble Rescue Squad"],
-  ambulance: ["Ambulance Unit", "Medical Transport", "Emergency Medical Vehicle"],
-};
+// const RESOURCE_NAMES: Record<ResourceType, string[]> = {
+//   ver: ["Vehicle Extrication Unit", "Crash Response Vehicle", "Auto Rescue Truck"],
+//   comm: ["Mobile Command Center", "Radio Communications Van", "Emergency Dispatch Unit"],
+//   tools: ["Equipment Transport", "Tool & Gear Vehicle", "Rescue Equipment Truck"],
+//   trucks: ["Utility Truck", "Transport Vehicle", "General Service Truck"],
+//   watercraft: ["Rescue Boat", "Marine Patrol Vessel", "Water Transport Unit"],
+//   fr: ["Fire Engine Alpha", "Fire Suppression Unit", "Emergency Fire Truck"],
+//   har: ["High Altitude Rescue Team", "Tower Rescue Unit", "Cliff Rescue Squad"],
+//   usar: ["Urban Search Team", "Disaster Response Unit", "Collapse Rescue Squad"],
+//   wasar: ["Water Rescue Team", "Marine Rescue Unit", "Coastal Response Team"],
+//   ews: ["Early Warning Vehicle", "Alert System Unit", "Monitoring Station"],
+//   ems: ["Emergency Medical Team", "Field Medics Unit", "Medical Response Squad"],
+//   firetruck: ["Fire Engine", "Fire Apparatus", "Firefighting Truck"],
+//   cssr: ["Structure Collapse Team", "Building Rescue Unit", "Rubble Rescue Squad"],
+//   ambulance: ["Ambulance Unit", "Medical Transport", "Emergency Medical Vehicle"],
+// };
 
 const STATUS_CONFIG = {
   ready: { color: "#22c55e", bgColor: "bg-green-500", label: "Ready", icon: CheckCircle2 },
@@ -488,15 +488,18 @@ export default function HomePage() {
 
       try {
         if (online) {
-          // Fetch from Supabase with details
-          const resources = await getAllResourcesWithDetails();
-          const markerData = resources.map(convertToMarkerData);
+          // Fetch from Supabase with details for display
+          const resourcesWithDetails = await getAllResourcesWithDetails();
+          const markerData = resourcesWithDetails.map(convertToMarkerData);
           setMarkers(markerData);
-          cacheResources(resources);
+          
+          // Cache basic resources (without joined details)
+          const basicResources = await getAllResources();
+          await cacheResources(basicResources);
           setIsStale(false);
         } else {
           // Try to get from cache
-          const cached = getCachedResources();
+          const cached = await getCachedResources();
           if (cached) {
             const markerData = cached.map(convertToMarkerData);
             setMarkers(markerData);
@@ -508,7 +511,7 @@ export default function HomePage() {
       } catch (error) {
         console.error("Error loading resources:", error);
         // Try cache on error
-        const cached = getCachedResources();
+        const cached = await getCachedResources();
         if (cached) {
           const markerData = cached.map(convertToMarkerData);
           setMarkers(markerData);
@@ -639,7 +642,6 @@ export default function HomePage() {
           selectedMunicipality={selectedMunicipality}
           onMunicipalitySelect={setSelectedMunicipality}
           showMunicipalityBoundaries={showBoundaries}
-          onMunicipalityCountChange={setMunicipalityCount}
         />
       </div>
 
@@ -647,19 +649,12 @@ export default function HomePage() {
       <header 
         className="map-header absolute top-6 z-40 flex items-center gap-2 w-[95vw] mx-2 md:ml-5"
       >
-        {/* Offline Indicator */}
-        {(isOffline || isStale) && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-xl text-sm font-medium shadow-lg">
-            <WifiOff size={16} />
-            {isOffline ? "Offline Mode" : "Showing cached data"}
-          </div>
-        )}
-
         {/* Logo */}
         <div className="w-20 h-20 md:w-30 md:h-30 bg-[#1e293b] rounded-full flex items-center justify-center shadow-xl">
           <Image src='/logo.png' width={200} height={200}  alt="Logo"/>
         </div>
-        
+
+
         {/* Search Bar */}
         <div className="map-search-bar relative w-70 md:w-100">
           <div className="flex items-center bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-3.5">
@@ -680,6 +675,13 @@ export default function HomePage() {
               </button>
             )}
           </div>
+        {/* Offline Indicator */}
+          {(isOffline || isStale) && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-xl text-sm font-medium shadow-lg">
+              <WifiOff size={16} />
+              {isOffline ? "Offline Mode" : "Showing cached data"}
+            </div>
+          )}
         </div>
 
         {/* Quick Actions Menu */}
@@ -732,17 +734,7 @@ export default function HomePage() {
           <LocateFixed size={22} className="text-white group-hover:scale-110 transition-transform" />
         </button>
 
-        {/* Municipality Filter */}
-        {selectedMunicipality && (
-          <button
-            onClick={() => setSelectedMunicipality(null)}
-            className="map-muni-btn w-auto h-12 px-4 bg-red-500 rounded-2xl shadow-xl shadow-red-500/30 flex items-center justify-center gap-2 hover:bg-red-600 transition-all group"
-          >
-            <MapPin size={18} className="text-white" />
-            <span className="text-white font-medium text-sm">{selectedMunicipality}</span>
-            <X size={16} className="text-white/80 group-hover:text-white" />
-          </button>
-        )}
+
 
         {/* Toggle Boundaries */}
         <button
@@ -757,6 +749,7 @@ export default function HomePage() {
           <Layers size={22} className={showBoundaries ? "text-white" : "text-slate-600"} />
         </button>
       </div>
+      
 
       {/* Resource Detail Sidebar */}
       <ResourceDetailSidebar 

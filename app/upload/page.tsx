@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import { useNotification } from "@/components/Notification";
 import { useAuth } from "@/contexts/AuthContext";
+import browserImageCompression from "browser-image-compression";
 import {
   Save,
   MapPin,
@@ -41,6 +42,9 @@ export default function UploadResourcePage() {
   const [isOffline, setIsOffline] = useState(false);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  );
 
   const [formData, setFormData] = useState<{
     title: string;
@@ -52,7 +56,7 @@ export default function UploadResourcePage() {
     municipality: string;
     status: ResourceStatus;
     image: string | undefined;
-    contactNumber: string;
+    contactNumber: string;  
   }>({
     title: "",
     type: "trucks",
@@ -84,6 +88,32 @@ export default function UploadResourcePage() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Compress image before upload using browser-image-compression
+  const compressImage = async (file: File): Promise<string> => {
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1024,
+      useWebWorker: true,
+    };
+    
+    try {
+      const compressedFile = await browserImageCompression(file, options);
+      const reader = new FileReader();
+      return new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(compressedFile);
+      });
+    } catch (error) {
+      console.error('Compression error:', error);
+      // Fallback to original file if compression fails
+      const reader = new FileReader();
+      return new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    }
+  };
 
   // Check if user can upload
   const canUpload = user && authUser && (role === "responder" || role === "admin");
@@ -137,7 +167,7 @@ export default function UploadResourcePage() {
     }
 
     // Validate Philippine mobile number format (+63 followed by 10 digits)
-    const phoneRegex = /^\+63[0-9]{10}$/;
+    const phoneRegex = /^\+639[0-9]{9}$/;
     if (!phoneRegex.test(formData.contactNumber)) {
       showError("Validation Error", "Please enter a valid Philippine mobile number (+63 followed by 10 digits).");
       return;
@@ -191,6 +221,7 @@ export default function UploadResourcePage() {
         status: statusMap[formData.status],
         photo_url: photoUrl,
         description: formData.description,
+        contactNumber: formData.contactNumber,
         latitude: formData.latitude,
         longitude: formData.longitude,
       };
@@ -315,15 +346,13 @@ export default function UploadResourcePage() {
                     type="file"
                     ref={fileInputRef}
                     accept="image/*"
+                    // capture="environment"
                     className="hidden"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setFormData({ ...formData, image: reader.result as string });
-                        };
-                        reader.readAsDataURL(file);
+                        const compressed = await compressImage(file);
+                        setFormData({ ...formData, image: compressed });
                       }
                     }}
                   />
@@ -387,7 +416,7 @@ export default function UploadResourcePage() {
                         <option key={key} value={key}>
                           {config.label}
                         </option>
-                      ))}
+                      ))} 
                     </select>
                   </div>
 
@@ -480,20 +509,20 @@ export default function UploadResourcePage() {
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-medium text-sm">
-                      +63
+                      +639
                     </span>
                     <input
                       type="tel"
-                      placeholder="9XX XXX XXXX"
-                      value={formData.contactNumber.replace(/^\+63/, "")}
-                      maxLength={12}
+                      placeholder="XX XXX XXXX"
+                      value={formData.contactNumber.replace(/^\+639/, "")}
+                      maxLength={10}
                       className="w-full rounded-xl border-slate-200 bg-slate-50 pl-12 pr-3.5 py-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none border hover:bg-white"
                       onChange={(e) => {
                         const rawValue = e.target.value.replace(/\D/g, "");
                         if (rawValue.length <= 10) {
                           setFormData({
                             ...formData,
-                            contactNumber: rawValue ? `+63${rawValue}` : "",
+                            contactNumber: rawValue ? `+639${rawValue}` : "",
                           });
                         }
                       }}

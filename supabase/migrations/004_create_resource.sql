@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS resource (
     municipality_id UUID REFERENCES municipality(municipality_id) ON DELETE SET NULL,
     quantity INTEGER DEFAULT 0,
     status TEXT CHECK (status IN ('ready', 'deployed', 'maintenance')) DEFAULT 'ready',
+    contactNumber TEXT,
     photo_url TEXT,
     description TEXT,
     longitude DOUBLE PRECISION,
