@@ -316,7 +316,9 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const resources = await getAllResourcesWithDetails();
+        const res = await fetch('/api/resources');
+        if (!res.ok) throw new Error('Failed to fetch resources');
+        const { data: resources } = await res.json();
         const transformedMarkers = resources.map(transformResourceToMarkerData);
         setMarkers(transformedMarkers);
       } catch (error) {
@@ -325,7 +327,7 @@ export default function DashboardPage() {
         try {
           const cached = await getCachedResources();
           if (cached) {
-            setMarkers(cached.map(transformResourceToMarkerData));
+            setMarkers(cached.resources.map(transformResourceToMarkerData));
           }
         } catch (cacheError) {
           console.error("Error loading from cache:", cacheError);
@@ -344,7 +346,7 @@ export default function DashboardPage() {
     setTimeout(async () => {
       const cached = await getCachedResources();
       if (cached) {
-        setMarkers(cached.map(transformResourceToMarkerData));
+        setMarkers(cached.resources.map(transformResourceToMarkerData));
       }
       setLastRefresh(new Date());
       setIsLoading(false);
@@ -711,7 +713,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between text-sm text-slate-500">
             <p>PDRRMO Iloilo Province Resource Management System</p>
-            <p> 2024 All Rights Reserved</p>
+            <p> 2025 All Rights Reserved</p>
           </div>
         </div>
       </footer>

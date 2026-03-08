@@ -41,6 +41,7 @@ export type Database = {
       resource: {
         Row: {
           added_by: string | null
+          contactNumber: string | null
           created_at: string | null
           description: string | null
           latitude: number | null
@@ -55,6 +56,7 @@ export type Database = {
         }
         Insert: {
           added_by?: string | null
+          contactNumber?: string | null
           created_at?: string | null
           description?: string | null
           latitude?: number | null
@@ -69,6 +71,7 @@ export type Database = {
         }
         Update: {
           added_by?: string | null
+          contactNumber?: string | null
           created_at?: string | null
           description?: string | null
           latitude?: number | null

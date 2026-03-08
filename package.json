@@ -13,6 +13,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.98.0",
     "browser-image-compression": "^2.0.2",
+    "cloudinary": "^2.9.0",
     "lucide-react": "^0.563.0",
     "maplibre-gl": "^5.17.0",
     "next": "16.1.6",

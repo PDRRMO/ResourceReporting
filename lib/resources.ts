@@ -5,27 +5,32 @@ const supabase = createClient()
 
 // READ - Public
 export async function getAllResources() {
+  
   const { data } = await supabase.from('resource').select('*')
   return data || []
 }
 
 export async function getResourceById(id: string) {
+  
   const { data } = await supabase.from('resource').select('*').eq('resource_id', id).single()
   return data
 }
 
 export async function getResourcesByMunicipality(municipalityId: string) {
+  
   const { data } = await supabase.from('resource').select('*').eq('municipality_id', municipalityId)
   return data || []
 }
 
 export async function getResourcesByType(typeId: string) {
+  
   const { data } = await supabase.from('resource').select('*').eq('type_id', typeId)
   return data || []
 }
 
 // WRITE - Requires responder/admin
 export async function createResource(data: ResourceInsert, userId: string) {
+  const supabase = createClient()
   const { data: resource, error } = await supabase
     .from('resource')
     .insert({ ...data, added_by: userId })
@@ -36,6 +41,7 @@ export async function createResource(data: ResourceInsert, userId: string) {
 }
 
 export async function updateResource(id: string, data: ResourceUpdate) {
+  
   const { data: resource, error } = await supabase
     .from('resource')
     .update(data)
@@ -47,6 +53,7 @@ export async function updateResource(id: string, data: ResourceUpdate) {
 }
 
 export async function updateResourceStatus(id: string, status: string) {
+  
   const { data: resource, error } = await supabase
     .from('resource')
     .update({ status })
@@ -58,12 +65,14 @@ export async function updateResourceStatus(id: string, status: string) {
 }
 
 export async function deleteResource(id: string) {
+  
   const { error } = await supabase.from('resource').delete().eq('resource_id', id)
   if (error) throw error
 }
 
 // WITH DETAILS (Joins)
 export async function getAllResourcesWithDetails() {
+  
   const { data, error } = await supabase
     .from('resource')
     .select('*, resource_types(code, full_name), municipality(name)')

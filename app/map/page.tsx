@@ -241,7 +241,7 @@ const ResourceDetailSidebar = ({
       <div className="p-6 space-y-6 overflow-y-auto h-[calc(100%-80px)]">
         {/* Image */}
         {marker.image ? (
-          <div className="w-full h-48 rounded-2xl overflow-hidden">
+          <div className="w-full h-88 rounded-2xl overflow-hidden">
             <img
               src={marker.image}
               alt={marker.title}
@@ -470,7 +470,7 @@ export default function HomePage() {
           longitude: resource.longitude || 0,
           municipality: resource.municipality?.name || "Unknown",
           status: mapDbStatusToUi(resource.status),
-          contactNumber: "",
+          contactNumber: resource.contactNumber || '',
           image: resource.photo_url || undefined,
           createdAt: resource.created_at || undefined,
           user_id: resource.added_by || undefined,
@@ -480,6 +480,7 @@ export default function HomePage() {
   // Load resources from Supabase with offline fallback
   useEffect(() => {
     const loadResources = async () => {
+      console.log("1. loadResources started");
       setIsLoading(true);
       
       // Check online status
@@ -488,20 +489,24 @@ export default function HomePage() {
 
       try {
         if (online) {
+          console.log("Online!")
           // Fetch from Supabase with details for display
-          const resourcesWithDetails = await getAllResourcesWithDetails();
+          const res = await fetch('/api/resources');
+          if (!res.ok) throw new Error('Failed to fetch resources');
+          const { data: resourcesWithDetails } = await res.json();
           const markerData = resourcesWithDetails.map(convertToMarkerData);
           setMarkers(markerData);
+          console.log("3. calling getAllResourcesWithDetails...")
           
           // Cache basic resources (without joined details)
-          const basicResources = await getAllResources();
-          await cacheResources(basicResources);
+          await cacheResources(resourcesWithDetails as any);
+          console.log("4. got resources:", resourcesWithDetails.length)
           setIsStale(false);
         } else {
           // Try to get from cache
           const cached = await getCachedResources();
           if (cached) {
-            const markerData = cached.map(convertToMarkerData);
+            const markerData = cached.resources.map(convertToMarkerData);
             setMarkers(markerData);
             setIsStale(true);
           } else {
@@ -510,14 +515,16 @@ export default function HomePage() {
         }
       } catch (error) {
         console.error("Error loading resources:", error);
+        console.log("5. ERROR:", error);
         // Try cache on error
         const cached = await getCachedResources();
         if (cached) {
-          const markerData = cached.map(convertToMarkerData);
+          const markerData = cached.resources.map(convertToMarkerData);
           setMarkers(markerData);
           setIsStale(true);
         }
       } finally {
+        console.log("6. finally reached");
         setIsLoading(false);
       }
     };

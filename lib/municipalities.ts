@@ -1,12 +1,13 @@
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
-
 // ============================================
 // MUNICIPALITIES
 // ============================================
 
+const supabase = createClient()
+
 export async function getAllMunicipalities() {
+  
   const { data, error } = await supabase
     .from('municipality')
     .select('*')
@@ -17,6 +18,7 @@ export async function getAllMunicipalities() {
 }
 
 export async function getMunicipalityByName(name: string) {
+  
   const { data, error } = await supabase
     .from('municipality')
     .select('*')
@@ -28,6 +30,7 @@ export async function getMunicipalityByName(name: string) {
 }
 
 export async function getMunicipalityById(id: string) {
+  
   const { data, error } = await supabase
     .from('municipality')
     .select('*')

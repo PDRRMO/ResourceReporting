@@ -1,10 +1,10 @@
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
-
 // ============================================
 // RESOURCE TYPES
 // ============================================
+
+const supabase = createClient()
 
 export async function getAllResourceTypes() {
   const { data, error } = await supabase
