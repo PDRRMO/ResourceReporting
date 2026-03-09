@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { MarkerData, ResourceType, ResourceStatus } from "@/types";
 import { RESOURCE_CONFIG, STATUS_CONFIG } from "@/lib/constants";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   ChevronLeft,
@@ -13,7 +14,12 @@ import {
   CheckCircle2,
   BarChart3,
   PieChart,
+  Upload,
+  Settings,
+  Layers,
+  Users,
 } from "lucide-react";
+import Link from "next/link";
 
 interface DashboardProps {
   markers: MarkerData[];
@@ -22,6 +28,8 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ markers, isOpen, onToggle }: DashboardProps) {
+  const { authUser } = useAuth();
+  const isAdmin = authUser?.role === "admin";
   // Calculate statistics
   const stats = useMemo(() => {
     // Status counts
@@ -118,6 +126,56 @@ export default function Dashboard({ markers, isOpen, onToggle }: DashboardProps)
 
         {/* Scrollable Content */}
         <div className="overflow-y-auto h-[calc(100%-80px)] p-5 space-y-6">
+          {/* Admin Actions */}
+          {isAdmin && (
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-4 border border-purple-200">
+              <div className="flex items-center gap-2 mb-3">
+                <Settings size={16} className="text-purple-600" />
+                <h3 className="text-sm font-bold text-purple-700 uppercase tracking-wider">
+                  Admin Actions
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/upload"
+                  className="flex items-center gap-2 p-3 bg-white rounded-xl border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group"
+                >
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Upload size={16} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-purple-700">Add Resource</span>
+                </Link>
+                <Link
+                  href="/admin/geojson"
+                  className="flex items-center gap-2 p-3 bg-white rounded-xl border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group"
+                >
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Layers size={16} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-purple-700 truncate">GeoJSON</span>
+                </Link>
+                <Link
+                  href="/admin/resources/types"
+                  className="flex items-center gap-2 p-3 bg-white rounded-xl border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group"
+                >
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Settings size={16} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-purple-700 truncate">Resource Types</span>
+                </Link>
+                <Link
+                  href="/admin/resources"
+                  className="flex items-center gap-2 p-3 bg-white rounded-xl border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group"
+                >
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Users size={16} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs font-semibold text-purple-700 truncate">Manage</span>
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Quick Summary */}
           <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white">
             <div className="flex items-center gap-2 mb-3">
@@ -268,7 +326,7 @@ export default function Dashboard({ markers, isOpen, onToggle }: DashboardProps)
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-slate-700 truncate">
+                          <span className="text-sm font-medium text-slate-700 truncate" title={config?.label || type}>
                             {config?.label || type}
                           </span>
                           <span className="text-sm font-bold text-slate-900">
@@ -309,11 +367,11 @@ export default function Dashboard({ markers, isOpen, onToggle }: DashboardProps)
                     key={municipality}
                     className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
                   >
-                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                       <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
                         <MapPin size={12} className="text-blue-600" />
                       </div>
-                      <span className="text-sm text-slate-700">
+                      <span className="text-sm text-slate-700 truncate max-w-[180px]" title={municipality}>
                         {municipality}
                       </span>
                     </div>

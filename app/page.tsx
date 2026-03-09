@@ -23,7 +23,10 @@ import {
   Building,
   RefreshCw,
   Plus,
+  Upload,
+  UserCircle,
 } from "lucide-react";
+import LargeNavigation from "@/components/LargeNavigation";
 
 // Type definitions
 interface DashboardStats {
@@ -285,14 +288,14 @@ const ActivityItem = ({
       style={{ animationDelay: `${delay}ms` }}
     >
       <div
-        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
         style={{ backgroundColor: `${config.color}15` }}
       >
         <Icon size={18} style={{ color: config.color }} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <h4 className="font-semibold text-slate-900">{title}</h4>
+          <h4 className="font-semibold text-slate-900 truncate">{title}</h4>
           <span
             className="text-xs font-medium px-2 py-1 rounded-full"
             style={{ backgroundColor: `${config.color}15`, color: config.color }}
@@ -539,6 +542,14 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            <LargeNavigation icon={LayoutDashboard} label="Dashboard" goTo="/dashboard" color="#2563eb" />
+            <LargeNavigation icon={MapPin} label="Live Map" goTo="/map" color="#22c55e" />
+            <LargeNavigation icon={Upload} label="Add Resource" goTo="/upload" color="#8b5cf6" />
+            <LargeNavigation icon={UserCircle} label="My Profile" goTo="/profile" color="#f59e0b" />
         </div>
 
         {/* Key Statistics Grid */}

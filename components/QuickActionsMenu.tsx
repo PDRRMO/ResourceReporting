@@ -11,6 +11,7 @@ import {
   ChevronRight,
   X,
   Settings,
+  User,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -36,16 +37,10 @@ const quickActions: QuickActionItem[] = [
     color: "#22c55e",
   },
   {
-    icon: Search,
-    label: "Search Resources",
-    href: "/map",
-    color: "#8b5cf6",
-  },
-  {
-    icon: FileText,
-    label: "Generate Report",
-    href: "#",
-    color: "#f59e0b",
+    icon: User,
+    label: "My Profile",
+    href: "/profile",
+    color: "#0ea5e9",
   },
   {
     icon: Settings,
@@ -141,12 +136,12 @@ function QuickActionLink({
       >
         <Icon size={20} style={{ color }} />
       </div>
-      <span className="font-medium text-slate-700 group-hover:text-slate-900 flex-1">
+      <span className="font-medium text-slate-700 group-hover:text-slate-900 flex-1 truncate">
         {label}
       </span>
       <ChevronRight
         size={16}
-        className="text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all"
+        className="text-slate-400 group-hover:text-slate-600 group-hover:translate-x-1 transition-all shrink-0"
       />
     </Link>
   );
